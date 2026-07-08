@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from feature_engineering import (  # noqa: E402
     CATEGORICAL_COLUMNS, build_features, get_model_feature_columns,
 )
-from evaluate_model import compute_all_metrics  # noqa: E402
+from evaluate_model import compute_all_metrics, compute_psi  # noqa: E402
 
 DATA_PATH = os.path.join("data", "synthetic_msme_data.csv")
 MODELS_DIR = "models"
@@ -203,6 +203,11 @@ def main():
           f"AUC-PR={calibrated_metrics['auc_pr']:.3f}  Recall@20%={calibrated_metrics['recall_at_top20pct']:.3f}  "
           f"Brier={calibrated_metrics['brier_score']:.4f}")
 
+    # Population Stability Index: development (train) vs holdout (test) score distribution.
+    prob_train_calibrated = calibrator.predict_proba(X_train)[:, 1]
+    psi_dev_vs_holdout = compute_psi(prob_train_calibrated, prob_test_calibrated)
+    print(f"PSI (train/dev vs test/holdout PD distribution) = {psi_dev_vs_holdout:.4f}")
+
     # Persist artifacts
     joblib.dump(best_model, os.path.join(MODELS_DIR, "trained_model.pkl"))
     joblib.dump(calibrator, os.path.join(MODELS_DIR, "calibrator.pkl"))
@@ -242,6 +247,7 @@ def main():
         "calibrated_test_metrics": {
             k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in calibrated_metrics.items()
         },
+        "psi_dev_vs_holdout": psi_dev_vs_holdout,
     }
     with open(os.path.join(MODELS_DIR, "training_report.json"), "w") as f:
         json.dump(report_payload, f, indent=2)

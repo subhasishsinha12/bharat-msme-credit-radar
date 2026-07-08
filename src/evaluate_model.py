@@ -72,6 +72,27 @@ def best_f1_threshold(y_true: np.ndarray, y_prob: np.ndarray) -> float:
     return float(thresholds[int(np.argmax(f1s))])
 
 
+def compute_psi(expected: np.ndarray, actual: np.ndarray, buckets: int = 10) -> float:
+    """Population Stability Index between a 'development' (expected) score
+    distribution and a 'holdout/live' (actual) one. Bucket edges are the
+    development set's own quantiles, per the standard PSI formulation.
+    PSI < 0.10 = stable, 0.10-0.25 = moderate shift, > 0.25 = significant shift."""
+    expected = np.asarray(expected)
+    actual = np.asarray(actual)
+    edges = np.unique(np.quantile(expected, np.linspace(0, 1, buckets + 1)))
+    edges[0], edges[-1] = -np.inf, np.inf
+    if len(edges) < 3:
+        return 0.0
+
+    exp_counts, _ = np.histogram(expected, bins=edges)
+    act_counts, _ = np.histogram(actual, bins=edges)
+    exp_pct = np.clip(exp_counts / len(expected), 1e-4, None)
+    act_pct = np.clip(act_counts / len(actual), 1e-4, None)
+
+    psi = np.sum((act_pct - exp_pct) * np.log(act_pct / exp_pct))
+    return float(psi)
+
+
 def compute_all_metrics(y_true, y_prob, threshold: float | None = None) -> dict:
     y_true = np.asarray(y_true)
     y_prob = np.asarray(y_prob)
@@ -155,12 +176,19 @@ def main():
             "observed_stress_rate": float(y_test[mask].mean()),
         })
 
+    psi = None
+    training_report_path = os.path.join(MODELS_DIR, "training_report.json")
+    if os.path.exists(training_report_path):
+        with open(training_report_path) as f:
+            psi = json.load(f).get("psi_dev_vs_holdout")
+
     report = {
         "best_model_name": feature_list["best_model_name"],
         "uncalibrated_metrics": {k: v for k, v in metrics_uncal.items() if k != "confusion_matrix"},
         "calibrated_metrics": {k: v for k, v in metrics_cal.items() if k != "confusion_matrix"},
         "confusion_matrix_calibrated": metrics_cal["confusion_matrix"].tolist(),
         "calibration_curve": calib_curve,
+        "psi_dev_vs_holdout": psi,
     }
     with open(os.path.join(MODELS_DIR, "evaluation_report.json"), "w") as f:
         json.dump(report, f, indent=2)
@@ -193,6 +221,12 @@ def _write_markdown_report(report: dict):
         f"| **Recall captured in top 20% riskiest accounts** | **{m['recall_at_top20pct']:.1%}** |",
         f"| Top-decile lift | {m['top_decile_lift']:.2f}x |",
         f"| Test set size / stress rate | {m['n']:,} rows / {m['positive_rate']:.2%} |",
+    ]
+    if report.get("psi_dev_vs_holdout") is not None:
+        psi_val = report["psi_dev_vs_holdout"]
+        psi_note = "stable" if psi_val < 0.10 else ("moderate shift" if psi_val < 0.25 else "significant shift")
+        lines.append(f"| PSI (development/train vs holdout/test PD distribution) | {psi_val:.4f} ({psi_note}) |")
+    lines += [
         "",
         "## Confusion Matrix (at tuned F1 threshold)",
         "",

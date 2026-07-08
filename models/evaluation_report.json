@@ -70,7 +70,7 @@
     {
       "bin": 4,
       "n": 111,
-      "mean_predicted_pd": 0.4339036743737286,
+      "mean_predicted_pd": 0.4339036743737287,
       "observed_stress_rate": 0.43243243243243246
     },
     {
@@ -82,7 +82,7 @@
     {
       "bin": 7,
       "n": 89,
-      "mean_predicted_pd": 0.736349659568216,
+      "mean_predicted_pd": 0.7363496595682161,
       "observed_stress_rate": 0.8089887640449438
     },
     {
@@ -91,5 +91,6 @@
       "mean_predicted_pd": 0.9584007119830986,
       "observed_stress_rate": 0.9027777777777778
     }
-  ]
+  ],
+  "psi_dev_vs_holdout": 0.0020616801561471393
 }

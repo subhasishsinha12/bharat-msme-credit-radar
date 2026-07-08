@@ -18,6 +18,7 @@
 | **Recall captured in top 20% riskiest accounts** | **90.7%** |
 | Top-decile lift | 7.79x |
 | Test set size / stress rate | 8,400 rows / 6.52% |
+| PSI (development/train vs holdout/test PD distribution) | 0.0021 (stable) |
 
 ## Confusion Matrix (at tuned F1 threshold)
 
