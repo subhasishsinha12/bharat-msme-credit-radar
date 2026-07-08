@@ -1,0 +1,151 @@
+{
+  "dataset_rows": 28000,
+  "n_borrowers": 3500,
+  "stress_rate_overall": 0.06521428571428571,
+  "train_rows": 14696,
+  "calib_rows": 4904,
+  "test_rows": 8400,
+  "models_compared": [
+    "logistic_regression",
+    "random_forest",
+    "xgboost",
+    "lightgbm"
+  ],
+  "uncalibrated_results": {
+    "logistic_regression": {
+      "auc_roc": 0.9442851976901138,
+      "auc_pr": 0.7290501298190213,
+      "gini": 0.8885703953802275,
+      "ks_statistic": 0.7693897319386757,
+      "brier_score": 0.08927692638124365,
+      "threshold_used": 0.89,
+      "precision": 0.748898678414097,
+      "recall": 0.6204379562043796,
+      "f1_score": 0.6786427145708582,
+      "recall_at_top10pct": 0.7718978102189781,
+      "recall_at_top20pct": 0.916058394160584,
+      "top_decile_lift": 7.718978102189781,
+      "positive_rate": 0.06523809523809523,
+      "n": 8400,
+      "selection_score": 0.835138337337572,
+      "confusion_matrix": [
+        [
+          7738,
+          114
+        ],
+        [
+          208,
+          340
+        ]
+      ]
+    },
+    "random_forest": {
+      "auc_roc": 0.9465645927765858,
+      "auc_pr": 0.7401744093916209,
+      "gini": 0.8931291855531716,
+      "ks_statistic": 0.7684145747422202,
+      "brier_score": 0.05717837212530709,
+      "threshold_used": 0.81,
+      "precision": 0.7252525252525253,
+      "recall": 0.6551094890510949,
+      "f1_score": 0.6883988494726749,
+      "recall_at_top10pct": 0.7791970802919708,
+      "recall_at_top20pct": 0.9105839416058394,
+      "top_decile_lift": 7.791970802919708,
+      "positive_rate": 0.06523809523809523,
+      "n": 8400,
+      "selection_score": 0.8415593215848292,
+      "confusion_matrix": [
+        [
+          7716,
+          136
+        ],
+        [
+          189,
+          359
+        ]
+      ]
+    },
+    "xgboost": {
+      "auc_roc": 0.9430195384689752,
+      "auc_pr": 0.7197352082214119,
+      "gini": 0.8860390769379505,
+      "ks_statistic": 0.7561865311176472,
+      "brier_score": 0.04931415989995003,
+      "threshold_used": 0.79,
+      "precision": 0.6865384615384615,
+      "recall": 0.6514598540145985,
+      "f1_score": 0.6685393258426966,
+      "recall_at_top10pct": 0.7645985401459854,
+      "recall_at_top20pct": 0.9032846715328468,
+      "top_decile_lift": 7.645985401459854,
+      "positive_rate": 0.06523809523809523,
+      "n": 8400,
+      "selection_score": 0.8314427206174052,
+      "confusion_matrix": [
+        [
+          7689,
+          163
+        ],
+        [
+          191,
+          357
+        ]
+      ]
+    },
+    "lightgbm": {
+      "auc_roc": 0.9419911613015979,
+      "auc_pr": 0.7191721677276279,
+      "gini": 0.8839823226031958,
+      "ks_statistic": 0.7545420572563223,
+      "brier_score": 0.04423983948551995,
+      "threshold_used": 0.75,
+      "precision": 0.710204081632653,
+      "recall": 0.635036496350365,
+      "f1_score": 0.6705202312138728,
+      "recall_at_top10pct": 0.7591240875912408,
+      "recall_at_top20pct": 0.8978102189781022,
+      "top_decile_lift": 7.591240875912409,
+      "positive_rate": 0.06523809523809523,
+      "n": 8400,
+      "selection_score": 0.8296525760987149,
+      "confusion_matrix": [
+        [
+          7710,
+          142
+        ],
+        [
+          200,
+          348
+        ]
+      ]
+    }
+  },
+  "best_model_name": "random_forest",
+  "calibrated_test_metrics": {
+    "auc_roc": 0.9458356650962514,
+    "auc_pr": 0.7139480625989576,
+    "gini": 0.8916713301925028,
+    "ks_statistic": 0.7647286850530433,
+    "brier_score": 0.03002241282847693,
+    "threshold_used": 0.37,
+    "precision": 0.7261663286004056,
+    "recall": 0.6532846715328468,
+    "f1_score": 0.6878001921229587,
+    "recall_at_top10pct": 0.7791970802919708,
+    "recall_at_top20pct": 0.9051094890510949,
+    "top_decile_lift": 7.791970802919708,
+    "confusion_matrix": [
+      [
+        7717,
+        135
+      ],
+      [
+        190,
+        358
+      ]
+    ],
+    "positive_rate": 0.06523809523809523,
+    "n": 8400
+  }
+}

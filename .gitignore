@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs / local runtime artifacts
+*.log
+.streamlit/
+
+# Large regenerable intermediate artifact (recreated by src/train_model.py)
+models/_test_split_raw.csv

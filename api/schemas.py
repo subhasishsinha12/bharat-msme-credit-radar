@@ -1,0 +1,134 @@
+"""Pydantic request/response schemas for the Bharat MSME Credit Radar API."""
+
+from __future__ import annotations
+
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ScoreRequest(BaseModel):
+    """Borrower scoring request. Only `borrower_id` is required — every other
+    field is optional and, if omitted, is imputed from the training
+    population's typical (median/mode) value. Supplying more fields raises
+    the returned `data_quality_score` and the fidelity of the PD estimate."""
+
+    model_config = ConfigDict(extra="allow", json_schema_extra={
+        "example": {
+            "borrower_id": "B000123",
+            "segment": "Manufacturer",
+            "loan_type": "Cash Credit",
+            "gst_turnover_growth_yoy": -12.5,
+            "gst_filing_delay_count_6m": 3,
+            "gstr1_vs_3b_mismatch_pct": 18.2,
+            "bank_credit_to_gst_sales_ratio": 0.62,
+            "cc_utilization_avg_3m": 94.5,
+            "emi_bounce_count_6m": 2,
+            "bureau_score": 682,
+            "bureau_enquiry_count_3m": 5,
+            "buyer_concentration_top2_pct": 61,
+            "epfo_employee_count_change_6m": -18,
+            "cam_remarks": "cash flow stress visible and buyer concentration high",
+        }
+    })
+
+    borrower_id: str = Field(..., description="Unique borrower / loan account identifier")
+
+    # Borrower profile
+    segment: Optional[str] = None
+    constitution: Optional[str] = None
+    sector: Optional[str] = None
+    geography: Optional[str] = None
+    business_vintage_years: Optional[float] = None
+    loan_type: Optional[str] = None
+    sanctioned_limit: Optional[float] = None
+    outstanding_amount: Optional[float] = None
+    collateral_available: Optional[str] = None
+    CGTMSE_flag: Optional[str] = None
+
+    # Repayment / conduct
+    current_dpd: Optional[float] = None
+    max_dpd_last_12m: Optional[float] = None
+    emi_bounce_count_6m: Optional[float] = None
+    cheque_return_count_6m: Optional[float] = None
+    si_ecs_bounce_count_6m: Optional[float] = None
+    cc_utilization_avg_3m: Optional[float] = None
+    cc_utilization_avg_6m: Optional[float] = None
+    drawing_power_decline_pct: Optional[float] = None
+    overdue_days_trend: Optional[float] = None
+    SMA_status: Optional[str] = None
+
+    # GST
+    gst_turnover_12m: Optional[float] = None
+    gst_turnover_growth_yoy: Optional[float] = None
+    gst_filing_delay_count_6m: Optional[float] = None
+    gstr1_vs_3b_mismatch_pct: Optional[float] = None
+    itc_to_sales_ratio: Optional[float] = None
+    gst_status: Optional[str] = None
+    buyer_concentration_top2_pct: Optional[float] = None
+    supplier_concentration_top2_pct: Optional[float] = None
+
+    # Bank / AA cash-flow
+    bank_credit_to_gst_sales_ratio: Optional[float] = None
+    cash_deposit_ratio: Optional[float] = None
+    cashflow_volatility_score: Optional[float] = None
+    debt_service_coverage_proxy: Optional[float] = None
+    monthly_surplus_ratio: Optional[float] = None
+
+    # Bureau
+    bureau_score: Optional[float] = None
+    bureau_enquiry_count_3m: Optional[float] = None
+    bureau_dpd_last_12m: Optional[float] = None
+    unsecured_loan_exposure: Optional[float] = None
+    total_obligation: Optional[float] = None
+
+    # EPFO
+    epfo_employee_count: Optional[float] = None
+    epfo_employee_count_change_6m: Optional[float] = None
+    salary_payment_regularity_score: Optional[float] = None
+
+    # Free-text remarks
+    cam_remarks: Optional[str] = None
+    fi_remarks: Optional[str] = None
+    rcu_remarks: Optional[str] = None
+    collection_remarks: Optional[str] = None
+    stock_inspection_remarks: Optional[str] = None
+
+
+class ReasonCode(BaseModel):
+    code: str
+    description: str
+    impact: float
+
+
+class ScoreResponse(BaseModel):
+    borrower_id: str
+    pd_12m: float
+    risk_grade: str
+    health_score: float
+    health_band: str
+    data_quality_score: int
+    top_risk_drivers: list[ReasonCode]
+    top_strength_drivers: list[ReasonCode]
+    recommended_action: str
+    action_checklist: list[str]
+    cgtmse_recommendation: Optional[str] = None
+    model_version: str
+
+
+class HealthCheckResponse(BaseModel):
+    status: str
+    service: str
+
+
+class PortfolioSummaryResponse(BaseModel):
+    total_accounts: int
+    total_exposure: float
+    accounts_by_grade: dict
+    exposure_by_grade: dict
+    expected_stress_amount: float
+    average_health_score: float
+    average_pd: float
+    top_10_high_risk_accounts: list[dict]
+    sector_wise_summary: list[dict]
+    geography_wise_summary: list[dict]

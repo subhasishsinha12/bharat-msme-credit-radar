@@ -1,0 +1,95 @@
+{
+  "best_model_name": "random_forest",
+  "uncalibrated_metrics": {
+    "auc_roc": 0.9467711978165403,
+    "auc_pr": 0.7406049179600888,
+    "gini": 0.8935423956330806,
+    "ks_statistic": 0.7701975599689139,
+    "brier_score": 0.05843409858788907,
+    "threshold_used": 0.8200000000000001,
+    "precision": 0.7214428857715431,
+    "recall": 0.656934306569343,
+    "f1_score": 0.6876790830945558,
+    "recall_at_top10pct": 0.7773722627737226,
+    "recall_at_top20pct": 0.9124087591240876,
+    "top_decile_lift": 7.773722627737226,
+    "positive_rate": 0.06523809523809523,
+    "n": 8400
+  },
+  "calibrated_metrics": {
+    "auc_roc": 0.9458410103335054,
+    "auc_pr": 0.7146956529226591,
+    "gini": 0.8916820206670109,
+    "ks_statistic": 0.7644776913037173,
+    "brier_score": 0.029917760377035137,
+    "threshold_used": 0.34,
+    "precision": 0.711764705882353,
+    "recall": 0.6624087591240876,
+    "f1_score": 0.6862003780718336,
+    "recall_at_top10pct": 0.7791970802919708,
+    "recall_at_top20pct": 0.906934306569343,
+    "top_decile_lift": 7.791970802919708,
+    "positive_rate": 0.06523809523809523,
+    "n": 8400
+  },
+  "confusion_matrix_calibrated": [
+    [
+      7705,
+      147
+    ],
+    [
+      185,
+      363
+    ]
+  ],
+  "calibration_curve": [
+    {
+      "bin": 0,
+      "n": 7074,
+      "mean_predicted_pd": 0.006693881437884731,
+      "observed_stress_rate": 0.010036754311563471
+    },
+    {
+      "bin": 1,
+      "n": 436,
+      "mean_predicted_pd": 0.13725691604322707,
+      "observed_stress_rate": 0.10091743119266056
+    },
+    {
+      "bin": 2,
+      "n": 367,
+      "mean_predicted_pd": 0.2507914726121443,
+      "observed_stress_rate": 0.18256130790190736
+    },
+    {
+      "bin": 3,
+      "n": 14,
+      "mean_predicted_pd": 0.33584192126700646,
+      "observed_stress_rate": 0.2857142857142857
+    },
+    {
+      "bin": 4,
+      "n": 111,
+      "mean_predicted_pd": 0.4339036743737286,
+      "observed_stress_rate": 0.43243243243243246
+    },
+    {
+      "bin": 5,
+      "n": 93,
+      "mean_predicted_pd": 0.5217391304347823,
+      "observed_stress_rate": 0.5053763440860215
+    },
+    {
+      "bin": 7,
+      "n": 89,
+      "mean_predicted_pd": 0.736349659568216,
+      "observed_stress_rate": 0.8089887640449438
+    },
+    {
+      "bin": 9,
+      "n": 216,
+      "mean_predicted_pd": 0.9584007119830986,
+      "observed_stress_rate": 0.9027777777777778
+    }
+  ]
+}
