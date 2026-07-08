@@ -1,5 +1,5 @@
 {
-  "raw_feature_columns": [
+  "feature_cols": [
     "segment",
     "constitution",
     "sector",
@@ -90,17 +90,6 @@
     "stock_statement_delay_flag",
     "text_risk_score",
     "text_model_risk_score"
-  ],
-  "categorical_columns": [
-    "segment",
-    "constitution",
-    "sector",
-    "geography",
-    "loan_type",
-    "collateral_available",
-    "CGTMSE_flag",
-    "SMA_status",
-    "gst_status"
   ],
   "categories": {
     "segment": [
@@ -297,6 +286,20 @@
     "gst_status_Cancelled",
     "gst_status_Suspended"
   ],
-  "best_model_name": "random_forest",
-  "scale_pos_weight": 13.652043868394816
+  "metrics": {
+    "auc_roc": 0.7582465600562758,
+    "auc_pr": 0.3001321960772052,
+    "gini": 0.5164931201125516,
+    "ks_statistic": 0.37871019878674517,
+    "brier_score": 0.11025982306186236,
+    "threshold_used": 0.19,
+    "precision": 0.26417525773195877,
+    "recall": 0.6827643630308077,
+    "f1_score": 0.38095238095238093,
+    "recall_at_top10pct": 0.2547876769358868,
+    "recall_at_top20pct": 0.4363030807660283,
+    "top_decile_lift": 2.5478767693588673,
+    "positive_rate": 0.14297619047619048,
+    "n": 8400
+  }
 }

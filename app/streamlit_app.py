@@ -1,8 +1,8 @@
 """
 Bharat MSME Credit Radar - Streamlit Dashboard
 =================================================
-5 pages: Executive Dashboard, Borrower Scoring, Portfolio Heatmap,
-Explainability, Model Performance.
+7 pages: Executive Dashboard, Borrower Scoring, Portfolio Heatmap,
+Explainability, Model Performance, MSME Credit Twin, Growth Propensity.
 
 Run:
     streamlit run app/streamlit_app.py
@@ -24,6 +24,8 @@ sys.path.insert(0, os.path.join(ROOT_DIR, "src"))
 
 from scoring import CreditRadarScorer, latest_snapshot  # noqa: E402
 from action_engine import risk_grade, health_band  # noqa: E402
+from credit_twin import build_credit_twin  # noqa: E402
+from graph_contagion import get_cluster_alerts  # noqa: E402
 
 DATA_PATH = os.path.join(ROOT_DIR, "data", "synthetic_msme_data.csv")
 MODELS_DIR = os.path.join(ROOT_DIR, "models")
@@ -43,11 +45,18 @@ def load_scorer() -> CreditRadarScorer:
 
 
 @st.cache_data
+def load_raw_panel() -> pd.DataFrame:
+    return pd.read_csv(DATA_PATH)
+
+
+@st.cache_data
 def load_scored_portfolio() -> pd.DataFrame:
     scorer = load_scorer()
-    raw = pd.read_csv(DATA_PATH)
+    raw = load_raw_panel()
     snapshot = latest_snapshot(raw)
-    return scorer.score_dataframe(snapshot)
+    scored = scorer.score_dataframe(snapshot)
+    scorer.refresh_cluster_context(scored)
+    return scored
 
 
 @st.cache_data
@@ -71,7 +80,7 @@ st.sidebar.title("🇮🇳 Bharat MSME Credit Radar")
 st.sidebar.caption("12-Month Predictive Default Intelligence & Early Warning Engine")
 page = st.sidebar.radio("Navigate", [
     "1. Executive Dashboard", "2. Borrower Scoring", "3. Portfolio Heatmap",
-    "4. Explainability", "5. Model Performance",
+    "4. Explainability", "5. Model Performance", "6. MSME Credit Twin", "7. Growth Propensity",
 ])
 st.sidebar.markdown("---")
 st.sidebar.caption(
@@ -222,6 +231,21 @@ elif page.startswith("2"):
     info3.write(f"**Outstanding:** ₹{float(raw_row.get('outstanding_amount', 0)):,.0f}")
     info4.write(f"**Sector / Geography:** {raw_row.get('sector', '-')} / {raw_row.get('geography', '-')}")
 
+    ccol1, ccol2, ccol3, ccol4 = st.columns(4)
+    ccol1.metric("Model Confidence", result["model_confidence"])
+    ccol2.metric("Model Version", result["model_version"])
+    sma = result.get("sma_migration_probability")
+    ccol3.metric("SMA Migration Prob. (3M)", f"{sma:.1%}" if sma is not None else "n/a")
+    pct = result.get("segment_benchmark_percentile")
+    ccol4.metric("Segment Benchmark", f"{pct:.0f}th pct." if pct is not None else "n/a")
+
+    if result.get("in_elevated_cluster"):
+        st.warning(
+            f"⚠️ This account sits in an **elevated-stress anchor-buyer cluster** "
+            f"(cluster stress index {result['cluster_stress_index']:.0f}/100) — see Portfolio Heatmap → "
+            "Cluster Contagion Alerts."
+        )
+
     dcol1, dcol2 = st.columns(2)
     with dcol1:
         st.markdown("#### 🔻 Top Risk Drivers")
@@ -237,8 +261,25 @@ elif page.startswith("2"):
     st.markdown("**Action checklist:**")
     for a in result["action_checklist"]:
         st.markdown(f"- {a}")
-    if result.get("cgtmse_recommendation"):
-        st.markdown(f"**CGTMSE Suitability:** {result['cgtmse_recommendation']}")
+
+    suit = result.get("cgtmse_suitability")
+    if suit:
+        st.markdown("#### 🛡️ CGTMSE Suitability Engine")
+        st.markdown(f"**{suit['category']}** (viability score {suit['viability_score']:.0f}/100)")
+        st.caption(suit["rationale"])
+        if suit["checklist"]:
+            for c in suit["checklist"]:
+                st.markdown(f"- {c}")
+
+    growth = result.get("growth_propensity")
+    if growth and growth.get("eligible"):
+        st.markdown("#### 📈 Growth Propensity Engine")
+        st.success(
+            f"Growth propensity score **{growth['growth_propensity_score']:.0f}/100** — "
+            f"suggested product: **{growth['suggested_product']}** — "
+            f"indicative quantum ₹{growth['indicative_quantum']:,.0f} — "
+            f"outreach window: **{growth['suggested_outreach_window']}**."
+        )
 
 # =========================================================================== #
 # PAGE 3 — PORTFOLIO HEATMAP
@@ -283,6 +324,22 @@ elif page.startswith("3"):
         q = portfolio[(portfolio["business_stress_keyword_flag"] == 1) | (portfolio["fraud_keyword_flag"] == 1)]
         st.caption(f"{len(q)} accounts carry negative CAM / FI / RCU / collection / stock remarks")
         st.dataframe(q[["borrower_id", "borrower_name", "sector", "geography", "pd_12m", "risk_grade"]].sort_values("pd_12m", ascending=False), use_container_width=True)
+
+    st.markdown("### Cluster Contagion Alerts")
+    st.caption(
+        "Graph contagion overlay (src/graph_contagion.py): anchor-buyer clusters whose average PD is "
+        "materially elevated relative to the portfolio — a signal that individual-account models can miss "
+        "until multiple linked accounts slip together."
+    )
+    alerts = get_cluster_alerts(portfolio, pd_col="pd_12m", top_n=10)
+    if not alerts:
+        st.info("No clusters currently show elevated co-movement.")
+    else:
+        for a in alerts:
+            st.markdown(
+                f"> **CLUSTER ALERT** — {a['message']} "
+                f"(stress index {a['cluster_stress_index']:.0f}/100, exposure ₹{a['total_exposure']/1e5:,.1f} L)"
+            )
 
 # =========================================================================== #
 # PAGE 4 — EXPLAINABILITY
@@ -380,3 +437,111 @@ elif page.startswith("5"):
         "not real-world bank-grade performance. See `reports/model_performance_report.md` and "
         "`reports/prototype_validation_note.md`."
     )
+
+# =========================================================================== #
+# PAGE 6 — MSME CREDIT TWIN
+# =========================================================================== #
+elif page.startswith("6"):
+    st.title("MSME Credit Twin")
+    st.caption(
+        "A continuously updated digital representation of each borrower's financial health and default "
+        "risk — where a traditional appraisal is a photograph, the Credit Twin is a live feed."
+    )
+
+    options = portfolio["borrower_id"] + " — " + portfolio["borrower_name"]
+    choice = st.selectbox("Select borrower", options.sort_values())
+    borrower_id = choice.split(" — ")[0]
+
+    raw_panel = load_raw_panel()
+    twin = build_credit_twin(borrower_id, raw_panel, scorer)
+
+    if twin is None:
+        st.warning("No history found for this borrower.")
+        st.stop()
+
+    t1, t2, t3, t4 = st.columns(4)
+    t1.metric("Current PD (12M)", f"{twin['current']['pd_12m']:.1%}")
+    t2.markdown(f"**Risk Grade**<br>{grade_badge(twin['current']['risk_grade'])}", unsafe_allow_html=True)
+    t3.metric("Health Score", f"{twin['current']['health_score']:.0f} / 100")
+    t4.metric("Trend", twin["trend"])
+
+    sma = twin["current"].get("sma_migration_probability")
+    emts = twin["current"].get("expected_months_to_stress")
+    t5, t6 = st.columns(2)
+    t5.metric("SMA Migration Prob. (next 3M)", f"{sma:.1%}" if sma is not None else "n/a")
+    t6.metric("Expected Months to Stress", f"{emts:.1f}" if emts is not None else "n/a (low risk)")
+
+    if twin["escalation_note"]:
+        st.warning(twin["escalation_note"])
+    if twin["on_watchlist"]:
+        st.error("This account is currently on the portfolio watchlist (Amber/Red/Black).")
+
+    st.markdown("### Health Score & PD Trajectory")
+    traj = pd.DataFrame(twin["trajectory"])
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=traj["obs_month"], y=traj["health_score"], mode="lines+markers", name="Health Score"))
+    fig.add_trace(go.Scatter(x=traj["obs_month"], y=traj["pd_12m"] * 100, mode="lines+markers",
+                              name="12M PD (%)", yaxis="y2"))
+    fig.update_layout(
+        xaxis_title="Observation Month",
+        yaxis=dict(title="Health Score (0-100)"),
+        yaxis2=dict(title="12M PD (%)", overlaying="y", side="right"),
+        legend=dict(orientation="h"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("### Refreshed Banker Action")
+    st.info(twin["recommended_action"])
+    for a in twin["action_checklist"]:
+        st.markdown(f"- {a}")
+
+    st.markdown(
+        "> Worked example from the design brief: a manufacturer whose GST turnover decelerates, whose CC "
+        "utilisation locks above 92% the following month and whose FI remark notes receivable stretch the "
+        "month after is Amber-flagged **months before** the account would first appear in an SMA-2 report — "
+        "the Credit Twin makes that trajectory visible instead of waiting for the overdue report."
+    )
+
+# =========================================================================== #
+# PAGE 7 — GROWTH PROPENSITY ENGINE
+# =========================================================================== #
+elif page.startswith("7"):
+    st.title("MSME Growth Propensity Engine")
+    st.caption(
+        "The data that reveals stress early also reveals strength early — for Green/Yellow accounts with "
+        "clean authenticity, this engine flags a pre-qualified enhancement / new-term-loan pipeline."
+    )
+
+    eligible = portfolio[portfolio["growth_eligible"] == True]  # noqa: E712
+    g1, g2, g3 = st.columns(3)
+    g1.metric("Eligible Accounts", f"{len(eligible):,}")
+    g2.metric("Avg. Growth Propensity Score", f"{eligible['growth_propensity_score'].mean():.0f}" if len(eligible) else "n/a")
+    g3.metric("Total Exposure of Eligible Accounts", f"₹{eligible['outstanding_amount'].sum()/1e7:,.1f} Cr")
+
+    st.markdown("### Guardrails")
+    st.caption(
+        "Only Green/Yellow-grade accounts with no fraud flag, no GST-bank mismatch and low near-term SMA "
+        "migration probability are eligible — every recommendation below is a lead for the banker, never "
+        "an automated sanction."
+    )
+
+    st.markdown("### Pre-Qualified Growth Pipeline")
+    top = eligible.sort_values("growth_propensity_score", ascending=False).head(50)
+    st.dataframe(
+        top[["borrower_id", "borrower_name", "segment", "sector", "geography", "risk_grade",
+             "growth_propensity_score", "growth_suggested_product", "outstanding_amount"]],
+        use_container_width=True,
+    )
+
+    st.markdown("### Growth Propensity Score Distribution")
+    fig = px.histogram(eligible, x="growth_propensity_score", nbins=30,
+                        title="Growth Propensity Score (eligible accounts only)",
+                        color_discrete_sequence=["#2e7d32"])
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("### By Suggested Product")
+    prod_counts = eligible["growth_suggested_product"].value_counts()
+    fig = px.bar(prod_counts, orientation="h", title="Eligible Accounts by Suggested Product",
+                 labels={"value": "Accounts", "index": "Suggested Product"}, color_discrete_sequence=["#1565c0"])
+    fig.update_layout(showlegend=False)
+    st.plotly_chart(fig, use_container_width=True)

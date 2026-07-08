@@ -23,7 +23,6 @@ import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GroupShuffleSplit
 
 try:
     from sklearn.frozen import FrozenEstimator  # sklearn >= 1.6
@@ -31,52 +30,17 @@ except ImportError:
     FrozenEstimator = None
 
 sys.path.insert(0, os.path.dirname(__file__))
-from feature_engineering import (  # noqa: E402
-    CATEGORICAL_COLUMNS, build_features, get_model_feature_columns,
-)
+from feature_engineering import build_features, get_model_feature_columns  # noqa: E402
 from evaluate_model import compute_all_metrics, compute_psi  # noqa: E402
+from model_utils import align_columns, encode_features, group_split  # noqa: E402,F401 (re-exported for callers)
+import segment_models  # noqa: E402
+import survival_model  # noqa: E402
+import growth_propensity  # noqa: E402
 
 DATA_PATH = os.path.join("data", "synthetic_msme_data.csv")
 MODELS_DIR = "models"
 REPORTS_DIR = "reports"
 SEED = 42
-
-
-def group_split(df: pd.DataFrame, seed: int = SEED):
-    """Split by borrower_id (not row) so a borrower's months never straddle
-    train/test, avoiding leakage. Stratified approximately via a two-step
-    GroupShuffleSplit on borrower-level max(stress_12m)."""
-    borrower_label = df.groupby("borrower_id")["stress_12m"].max()
-    borrower_ids = borrower_label.index.to_numpy()
-
-    gss1 = GroupShuffleSplit(n_splits=1, test_size=0.30, random_state=seed)
-    trainval_idx, test_idx = next(gss1.split(df, groups=df["borrower_id"]))
-    trainval_df, test_df = df.iloc[trainval_idx], df.iloc[test_idx]
-
-    gss2 = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=seed)  # 0.25 * 0.70 = 0.175 -> ~60/17.5/22.5
-    train_idx, calib_idx = next(gss2.split(trainval_df, groups=trainval_df["borrower_id"]))
-    train_df, calib_df = trainval_df.iloc[train_idx], trainval_df.iloc[calib_idx]
-
-    return train_df.reset_index(drop=True), calib_df.reset_index(drop=True), test_df.reset_index(drop=True)
-
-
-def encode_features(df: pd.DataFrame, feature_cols: list[str], categories: dict | None = None):
-    """One-hot encode categorical columns with a fixed category vocabulary
-    so train/calib/test/inference always produce identical column sets."""
-    work = df[feature_cols].copy()
-    if categories is None:
-        categories = {c: sorted(work[c].dropna().unique().tolist()) for c in CATEGORICAL_COLUMNS if c in work.columns}
-
-    for col, cats in categories.items():
-        work[col] = pd.Categorical(work[col], categories=cats)
-
-    encoded = pd.get_dummies(work, columns=list(categories.keys()), dummy_na=False)
-    return encoded, categories
-
-
-def align_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    df = df.reindex(columns=columns, fill_value=0)
-    return df
 
 
 def build_candidate_models(scale_pos_weight: float):
@@ -130,7 +94,7 @@ def main():
     raw = pd.read_csv(DATA_PATH)
 
     print("Computing default value profile (for partial API payload imputation)...")
-    id_and_target_cols = {"record_id", "borrower_id", "borrower_name", "obs_month", "stress_12m"}
+    id_and_target_cols = {"record_id", "borrower_id", "borrower_name", "obs_month", "stress_12m", "growth_need_12m"}
     text_cols = {"cam_remarks", "fi_remarks", "rcu_remarks", "collection_remarks", "stock_inspection_remarks"}
     default_profile = {}
     for col in raw.columns:
@@ -255,8 +219,42 @@ def main():
     # Persist the exact test split (encoded) for downstream evaluation/explainability scripts
     test_df.to_csv(os.path.join(MODELS_DIR, "_test_split_raw.csv"), index=False)
 
+    print("\n--- Segment-Wise MSME Model Design (Section 5) ---")
+    segment_results = segment_models.train_all_segment_models(engineered, feature_cols, categories, encoded_columns)
+    segment_models.save_segment_artifacts(segment_results, MODELS_DIR, feature_cols, categories, encoded_columns)
+
+    print("\n--- Survival / Timing Model (Layer 4) ---")
+    surv_model = survival_model.train_survival_model(engineered, feature_cols, categories, encoded_columns)
+    survival_model.save_survival_artifacts(surv_model, MODELS_DIR)
+    print("  Trained discrete-time (quarterly) hazard model for month-of-stress timing.")
+
+    print("\n--- MSME Growth Propensity Engine (Section 12) ---")
+    growth_model, growth_calibrator, growth_metrics = growth_propensity.train_growth_model(
+        engineered, feature_cols, categories, encoded_columns
+    )
+    growth_propensity.save_growth_artifacts(
+        growth_model, growth_calibrator, feature_cols, categories, encoded_columns, growth_metrics, MODELS_DIR
+    )
+    print(f"  AUC-ROC={growth_metrics['auc_roc']:.3f}  AUC-PR={growth_metrics['auc_pr']:.3f}  "
+          f"Recall@20%={growth_metrics['recall_at_top20pct']:.3f}")
+
+    print("\n--- Segment PD Benchmark Reference (percentile curves) ---")
+    X_all, _ = encode_features(engineered, feature_cols, categories)
+    X_all = align_columns(X_all, encoded_columns).astype(float)
+    prob_all = calibrator.predict_proba(X_all)[:, 1]
+    percentiles = np.arange(0, 101)
+    segment_pd_reference = {"_overall": np.percentile(prob_all, percentiles).tolist()}
+    for segment in engineered["segment"].unique():
+        mask = (engineered["segment"] == segment).to_numpy()
+        if mask.sum() >= 30:
+            segment_pd_reference[segment] = np.percentile(prob_all[mask], percentiles).tolist()
+    with open(os.path.join(MODELS_DIR, "segment_pd_reference.json"), "w") as f:
+        json.dump(segment_pd_reference, f, indent=2)
+
     print("\nSaved: trained_model.pkl, calibrator.pkl, feature_list.json, tfidf_vectorizer.pkl, "
-          "text_risk_model.pkl, training_report.json")
+          "text_risk_model.pkl, training_report.json, segment_manifest.json + models/segments/*, "
+          "survival_model.pkl, growth_model.pkl, growth_calibrator.pkl, growth_feature_list.json, "
+          "segment_pd_reference.json")
 
 
 if __name__ == "__main__":

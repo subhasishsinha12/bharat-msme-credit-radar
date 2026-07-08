@@ -21,8 +21,8 @@ FEATURE_META: dict[str, tuple[str, str, str, str]] = {
     "current_dpd": ("DPD-HIGH", "Elevated current days-past-due", "DPD-CLEAN", "Account current with no overdue"),
     "max_dpd_last_12m": ("DPD-HIST-HIGH", "High DPD seen in last 12 months", "DPD-HIST-CLEAN", "Clean DPD history over last 12 months"),
     "high_dpd_flag": ("DPD-HIGH", "Account past 30 DPD", "DPD-CLEAN", "Account within standard DPD"),
-    "repeated_bounce_flag": ("EMI-BOUNCE", "Repeated EMI / cheque / SI bounce pattern", "REPAY-CLEAN", "No repeated bounce pattern"),
-    "emi_bounce_count_6m": ("EMI-BOUNCE", "EMI / ECS bounce pattern observed", "REPAY-CLEAN", "No EMI bounce in last 6 months"),
+    "repeated_bounce_flag": ("EMI-BNC-PTN", "Repeated EMI / cheque / SI bounce pattern", "REPAY-CLEAN", "No repeated bounce pattern"),
+    "emi_bounce_count_6m": ("EMI-BNC-PTN", "EMI / ECS bounce pattern observed", "REPAY-CLEAN", "No EMI bounce in last 6 months"),
     "cheque_return_count_6m": ("CHQ-RETURN", "Cheque return instances observed", "REPAY-CLEAN", "No cheque returns in last 6 months"),
     "si_ecs_bounce_count_6m": ("SI-ECS-BOUNCE", "Standing instruction / ECS bounce observed", "REPAY-CLEAN", "SI/ECS instructions honoured regularly"),
     "repayment_regularity_score": ("REPAY-IRREG", "Weak repayment regularity score", "REPAY-CLEAN", "Strong repayment regularity"),
@@ -33,8 +33,8 @@ FEATURE_META: dict[str, tuple[str, str, str, str]] = {
     "cc_utilization_volatility": ("CC-UTIL-VOL", "Volatile cash credit utilization pattern", "CC-UTIL-STABLE", "Stable cash credit utilization pattern"),
     "drawing_power_decline_pct": ("DP-EROSION", "Drawing power erosion observed", "DP-STABLE", "Drawing power stable / improving"),
     "overdue_days_trend": ("OD-TREND-UP", "Rising overdue-days trend", "OD-TREND-OK", "Stable overdue-days trend"),
-    "gst_bank_mismatch_flag": ("GST-BANK-MM", "GST turnover not matching bank credits", "GST-BANK-OK", "GST turnover reconciles with bank credits"),
-    "bank_credit_to_gst_sales_ratio": ("GST-BANK-MM", "Bank credit to GST sales ratio outside expected range", "GST-BANK-OK", "Bank credit tracks GST sales appropriately"),
+    "gst_bank_mismatch_flag": ("GST-BNK-MIS", "GST turnover not matching bank credits", "GST-BANK-OK", "GST turnover reconciles with bank credits"),
+    "bank_credit_to_gst_sales_ratio": ("GST-BNK-MIS", "Bank credit to GST sales ratio outside expected range", "GST-BANK-OK", "Bank credit tracks GST sales appropriately"),
     "high_itc_flag": ("ITC-RISK", "High ITC-to-sales ratio", "ITC-OK", "ITC-to-sales ratio within normal range"),
     "itc_to_sales_ratio": ("ITC-RISK", "High ITC-to-sales ratio", "ITC-OK", "ITC-to-sales ratio within normal range"),
     "gst_delay_flag": ("GST-FIL-DLY", "GST filing delay observed", "GST-FIL-OK", "GST filings timely"),
@@ -54,9 +54,9 @@ FEATURE_META: dict[str, tuple[str, str, str, str]] = {
     "monthly_surplus_ratio": ("CASHFLOW-LOW-SURPLUS", "Low / negative monthly cash surplus ratio", "CASHFLOW-SURPLUS-OK", "Healthy monthly cash surplus ratio"),
     "high_cash_deposit_flag": ("CASH-DEPOSIT-HI", "High cash deposit ratio (informal collections)", "CASH-DEPOSIT-OK", "Healthy digital / cheque collection mix"),
     "cash_deposit_ratio": ("CASH-DEPOSIT-HI", "High cash deposit ratio (informal collections)", "CASH-DEPOSIT-OK", "Healthy digital / cheque collection mix"),
-    "low_bank_credit_to_gst_flag": ("GST-BANK-MM", "Bank credits materially below GST sales", "GST-BANK-OK", "Bank credits track GST sales"),
-    "cashflow_volatility_flag": ("CASH-VOL-HI", "High cash-flow volatility", "CASH-VOL-OK", "Stable cash-flow pattern"),
-    "cashflow_volatility_score": ("CASH-VOL-HI", "High cash-flow volatility score", "CASH-VOL-OK", "Stable cash-flow pattern"),
+    "low_bank_credit_to_gst_flag": ("GST-BNK-MIS", "Bank credits materially below GST sales", "GST-BANK-OK", "Bank credits track GST sales"),
+    "cashflow_volatility_flag": ("CF-VOL-HI", "High cash-flow volatility", "CF-VOL-OK", "Stable cash-flow pattern"),
+    "cashflow_volatility_score": ("CF-VOL-HI", "High cash-flow volatility score", "CF-VOL-OK", "Stable cash-flow pattern"),
     "dscr_proxy_flag": ("DSCR-WEAK", "Debt service coverage proxy below 1x", "DSCR-STRONG", "Comfortable debt service coverage"),
     "debt_service_coverage_proxy": ("DSCR-WEAK", "Weak debt service coverage proxy", "DSCR-STRONG", "Strong debt service coverage"),
     "cashflow_strength_score": ("CASHFLOW-WEAK", "Weak overall cash-flow strength score", "CASHFLOW-STRONG", "Strong overall cash-flow profile"),
@@ -66,17 +66,17 @@ FEATURE_META: dict[str, tuple[str, str, str, str]] = {
     "outward_return_count_6m": ("OUTWARD-RETURN-HI", "Frequent outward cheque/instrument returns", "OUTWARD-RETURN-OK", "No material outward returns"),
     "bureau_low_score_flag": ("BUR-SCORE-LOW", "Bureau score below policy threshold", "BUR-SCORE-OK", "Healthy bureau score"),
     "bureau_score": ("BUR-SCORE-LOW", "Low bureau score", "BUR-SCORE-OK", "Healthy bureau score"),
-    "enquiry_spike_flag": ("BUR-ENQ-SPIKE", "Bureau enquiry spike observed", "BUR-ENQ-OK", "No unusual bureau enquiry activity"),
-    "bureau_enquiry_count_3m": ("BUR-ENQ-SPIKE", "Bureau enquiry spike observed", "BUR-ENQ-OK", "No unusual bureau enquiry activity"),
+    "enquiry_spike_flag": ("BUR-ENQ-SPK", "Bureau enquiry spike observed", "BUR-ENQ-OK", "No unusual bureau enquiry activity"),
+    "bureau_enquiry_count_3m": ("BUR-ENQ-SPK", "Bureau enquiry spike observed", "BUR-ENQ-OK", "No unusual bureau enquiry activity"),
     "unsecured_exposure_flag": ("UNSEC-EXPOSURE-HI", "High unsecured loan exposure share", "UNSEC-EXPOSURE-OK", "Contained unsecured exposure share"),
     "unsecured_loan_exposure": ("UNSEC-EXPOSURE-HI", "High unsecured loan exposure", "UNSEC-EXPOSURE-OK", "Contained unsecured exposure"),
     "bureau_stress_score": ("BUR-STRESS", "High composite bureau stress score", "BUR-STRONG", "Healthy composite bureau profile"),
     "bureau_dpd_last_12m": ("BUR-DPD-HIGH", "Adverse DPD reported at bureau", "BUR-DPD-CLEAN", "Clean bureau DPD history"),
-    "employee_decline_flag": ("EPFO-DECLINE", "Employee headcount decline (EPFO)", "EPFO-STABLE", "Stable / growing employee headcount"),
-    "epfo_employee_count_change_6m": ("EPFO-DECLINE", "Employee headcount decline (EPFO)", "EPFO-STABLE", "Stable / growing employee headcount"),
+    "employee_decline_flag": ("EPFO-DECL", "Employee headcount decline (EPFO)", "EPFO-STABLE", "Stable / growing employee headcount"),
+    "epfo_employee_count_change_6m": ("EPFO-DECL", "Employee headcount decline (EPFO)", "EPFO-STABLE", "Stable / growing employee headcount"),
     "salary_irregularity_flag": ("EPFO-SALARY-IRREG", "Irregular salary payment pattern", "EPFO-SALARY-OK", "Regular salary payment pattern"),
     "salary_payment_regularity_score": ("EPFO-SALARY-IRREG", "Irregular salary payment pattern", "EPFO-SALARY-OK", "Regular salary payment pattern"),
-    "operating_stability_score": ("OPS-UNSTABLE", "Weak operating stability score", "OPS-STABLE", "Strong operating stability score"),
+    "operating_stability_score": ("OPS-CONT-LO", "Weak operating-continuity score (EPFO / salary proxy)", "OPS-CONT-OK", "Strong operating-continuity score"),
     "risk_keyword_count": ("TXT-STRESS", "Negative business-stress remarks in credit notes", "TXT-CLEAN", "Predominantly positive credit officer remarks"),
     "text_risk_score": ("TXT-STRESS", "Elevated text-based risk score from remarks", "TXT-CLEAN", "Low text-based risk score from remarks"),
     "text_model_risk_score": ("TXT-STRESS", "NLP model flags adverse remarks", "TXT-CLEAN", "NLP model finds remarks reassuring"),
@@ -84,6 +84,9 @@ FEATURE_META: dict[str, tuple[str, str, str, str]] = {
     "business_stress_keyword_flag": ("TXT-STRESS", "Negative business-stress remarks", "TXT-CLEAN", "No business-stress remarks"),
     "collateral_risk_keyword_flag": ("COLLATERAL-RISK", "Adverse stock / collateral inspection remarks", "COLLATERAL-OK", "Satisfactory stock / collateral remarks"),
     "management_quality_keyword_flag": ("MGMT-QUALITY-RISK", "Management / promoter quality concern noted", "MGMT-QUALITY-OK", "No management quality concern noted"),
+    "fi_negative_remark_flag": ("FI-NEG-RMK", "Field visit (FI) remark indicates thin stock or delayed receivables", "FI-CLEAN", "Field visit remarks satisfactory"),
+    "related_party_keyword_flag": ("RPT-TXN-RISK", "Related-party transaction / fund-diversion remark noted", "RPT-CLEAN", "No related-party transaction concern noted"),
+    "stock_statement_delay_flag": ("STK-STMT-DLY", "Stock statement / verification delayed — monitoring evasion signal", "STK-STMT-OK", "Stock statements submitted and verified on time"),
     "business_vintage_years": ("VINTAGE-LOW", "Limited business vintage", "VINTAGE-OK", "Established business vintage"),
     "sanctioned_limit": ("LIMIT-SIZE", "Facility size contributes to exposure risk", "LIMIT-SIZE-OK", "Facility size within comfortable range"),
     "gst_authenticity_score": ("GST-AUTH-LOW", "Low GST authenticity / compliance score", "GST-AUTH-OK", "Strong GST authenticity / compliance score"),
@@ -106,6 +109,12 @@ def lookup_reason(feature_name: str, shap_value: float) -> tuple[str, str]:
     if feature_name in FEATURE_META:
         risk_code, risk_desc, strength_code, strength_desc = FEATURE_META[feature_name]
         return (risk_code, risk_desc) if shap_value >= 0 else (strength_code, strength_desc)
+
+    if feature_name.startswith("sector_") or feature_name.startswith("geography_"):
+        pretty = _humanize(feature_name)
+        if shap_value >= 0:
+            return ("SEC-STRESS", f"{pretty} — elevated sector/geography stress index for this cell")
+        return ("SEC-STRONG", f"{pretty} — favourable sector/geography risk profile")
 
     pretty = _humanize(base_name)
     if shap_value >= 0:

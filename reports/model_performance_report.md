@@ -6,39 +6,41 @@
 
 | Metric | Value |
 |---|---|
-| AUC-ROC | 0.946 |
-| AUC-PR (Average Precision) | 0.715 |
-| Gini Coefficient | 0.892 |
-| KS Statistic | 0.764 |
-| Brier Score | 0.0299 |
-| Precision @ tuned threshold (0.34) | 0.712 |
-| Recall @ tuned threshold | 0.662 |
-| F1 Score | 0.686 |
-| **Recall captured in top 10% riskiest accounts** | **77.9%** |
-| **Recall captured in top 20% riskiest accounts** | **90.7%** |
-| Top-decile lift | 7.79x |
-| Test set size / stress rate | 8,400 rows / 6.52% |
-| PSI (development/train vs holdout/test PD distribution) | 0.0021 (stable) |
+| AUC-ROC | 0.954 |
+| AUC-PR (Average Precision) | 0.738 |
+| Gini Coefficient | 0.909 |
+| KS Statistic | 0.780 |
+| Brier Score | 0.0281 |
+| Precision @ tuned threshold (0.38) | 0.782 |
+| Recall @ tuned threshold | 0.621 |
+| F1 Score | 0.692 |
+| **Recall captured in top 10% riskiest accounts** | **79.9%** |
+| **Recall captured in top 20% riskiest accounts** | **91.8%** |
+| Top-decile lift | 7.99x |
+| Test set size / stress rate | 8,400 rows / 6.40% |
+| PSI (development/train vs holdout/test PD distribution) | 0.0025 (stable) |
 
 ## Confusion Matrix (at tuned F1 threshold)
 
 | | Predicted Non-Stress | Predicted Stress |
 |---|---|---|
-| **Actual Non-Stress** | 7705 | 147 |
-| **Actual Stress** | 185 | 363 |
+| **Actual Non-Stress** | 7769 | 93 |
+| **Actual Stress** | 204 | 334 |
 
 ## Calibration Curve (Predicted PD vs Observed Stress Rate, 10 bins)
 
 | Bin | N | Mean Predicted PD | Observed Stress Rate |
 |---|---|---|---|
-| 0 | 7074 | 0.007 | 0.010 |
-| 1 | 436 | 0.137 | 0.101 |
-| 2 | 367 | 0.251 | 0.183 |
-| 3 | 14 | 0.336 | 0.286 |
-| 4 | 111 | 0.434 | 0.432 |
-| 5 | 93 | 0.522 | 0.505 |
-| 7 | 89 | 0.736 | 0.809 |
-| 9 | 216 | 0.958 | 0.903 |
+| 0 | 7275 | 0.009 | 0.010 |
+| 1 | 366 | 0.135 | 0.128 |
+| 2 | 115 | 0.260 | 0.165 |
+| 3 | 218 | 0.367 | 0.303 |
+| 4 | 53 | 0.478 | 0.509 |
+| 5 | 88 | 0.529 | 0.568 |
+| 6 | 16 | 0.667 | 0.750 |
+| 7 | 25 | 0.752 | 0.840 |
+| 8 | 99 | 0.849 | 0.848 |
+| 9 | 145 | 0.970 | 0.959 |
 
 > Recall at the top 20% risk band is emphasised over plain accuracy because an early-warning system is judged by how many genuinely stressed accounts are surfaced within the review capacity a bank can actually action (a field-visit / stock-audit queue is realistically sized at the top 10-20% of the book), not by overall classification accuracy on a ~93% non-stress imbalanced target.
 

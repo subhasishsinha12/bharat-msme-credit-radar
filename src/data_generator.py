@@ -113,6 +113,15 @@ def generate_borrowers(n_borrowers: int, rng: np.random.Generator) -> pd.DataFra
     )
     latent = (latent - latent.mean()) / latent.std()
 
+    # Cluster / anchor-buyer structure for the graph contagion overlay: every
+    # borrower belongs to a sector-geography cluster cell (e.g. "Textile-Surat"),
+    # further split into a handful of anchor-buyer groups within that cell —
+    # modelling the real MSME-cluster pattern where many small units in the same
+    # trade pocket sell to a small number of anchor buyers/traders.
+    cluster_id = pd.Series(sector).astype(str) + "-" + pd.Series(geography).astype(str)
+    n_sub_buyers = rng.integers(2, 4, size=n_borrowers)  # 2 or 3 anchor buyers per cluster cell
+    anchor_buyer_id = cluster_id + "-BUYER" + pd.Series(n_sub_buyers).astype(str)
+
     df = pd.DataFrame({
         "borrower_id": borrower_id,
         "borrower_name": borrower_name,
@@ -126,24 +135,52 @@ def generate_borrowers(n_borrowers: int, rng: np.random.Generator) -> pd.DataFra
         "outstanding_amount": outstanding_amount,
         "collateral_available": collateral_available,
         "CGTMSE_flag": cgtmse_flag,
+        "cluster_id": cluster_id,
+        "anchor_buyer_id": anchor_buyer_id,
         "_latent_risk": latent,
     })
     return df
 
 
+def add_cluster_contagion_shock(rep: pd.DataFrame, months: int, rng: np.random.Generator) -> pd.DataFrame:
+    """Simulate anchor-buyer / cluster contagion: a minority of anchor-buyer
+    groups become distressed (e.g. an anchor trader/buyer starts struggling)
+    and that shock ramps up across months, lifting `_risk_now` for every
+    borrower who sells into that buyer group — independent of each
+    borrower's own individual conduct. This is what the graph contagion
+    overlay (src/graph_contagion.py) is designed to detect early from
+    co-movement, before each member's own signals fully deteriorate."""
+    anchor_ids = rep["anchor_buyer_id"].unique()
+    n_distressed = max(1, int(round(len(anchor_ids) * 0.08)))
+    distressed = set(rng.choice(anchor_ids, size=n_distressed, replace=False))
+    rep["_anchor_distressed"] = rep["anchor_buyer_id"].isin(distressed).astype(int)
+
+    # Ramp severity is anchor-specific (not every distressed buyer fails equally hard).
+    severity = {a: rng.uniform(0.6, 1.8) for a in distressed}
+    sev = rep["anchor_buyer_id"].map(severity).fillna(0.0).to_numpy()
+    ramp = rep["obs_month"].to_numpy() / max(months - 1, 1)
+    rep["_cluster_shock"] = sev * ramp * rep["_anchor_distressed"].to_numpy()
+    return rep
+
+
 def expand_panel(borrowers: pd.DataFrame, months: int, rng: np.random.Generator) -> pd.DataFrame:
     """Replicate each borrower across `months` observation months, adding a
     per-row stress trajectory that drifts upward for higher latent-risk
-    borrowers (simulating deterioration approaching a stress event)."""
+    borrowers (simulating deterioration approaching a stress event), plus a
+    shared anchor-buyer cluster shock for a minority of borrower clusters."""
     n = len(borrowers)
     rep = borrowers.loc[borrowers.index.repeat(months)].reset_index(drop=True)
     month_idx = np.tile(np.arange(months), n)
     rep["obs_month"] = month_idx
+    rep = add_cluster_contagion_shock(rep, months, rng)
 
     # Trajectory noise: each borrower gets its own drift slope correlated with latent risk.
     drift_slope = rep["_latent_risk"].to_numpy() * rng.normal(1.0, 0.25, size=len(rep))
     month_noise = rng.normal(0, 0.35, size=len(rep))
-    rep["_risk_now"] = rep["_latent_risk"] + drift_slope * (rep["obs_month"] / max(months - 1, 1)) + month_noise
+    rep["_risk_now"] = (
+        rep["_latent_risk"] + drift_slope * (rep["obs_month"] / max(months - 1, 1))
+        + month_noise + rep["_cluster_shock"]
+    )
     return rep
 
 
@@ -334,6 +371,51 @@ def compute_target(df: pd.DataFrame, rng: np.random.Generator, target_rate: floa
     return df
 
 
+def compute_growth_target(df: pd.DataFrame, rng: np.random.Generator, target_rate: float = 0.14) -> pd.DataFrame:
+    """Binary growth_need_12m target for the MSME Growth Propensity Engine:
+    the "mirror image" of compute_target, built from expansion/headroom
+    signals rather than stress signals — sustained GST growth, rising EPFO
+    headcount, comfortable debt-service coverage, positive cash surplus and
+    persistently high (but currently serviced) CC utilisation (a unit
+    outrunning its limit). Intercept-calibrated to a ~12-16% prevalence,
+    reflecting that meaningfully more accounts show *some* growth signal
+    than show stress in any given year. Eligibility (Green/Yellow grade,
+    clean fraud/authenticity) is enforced separately at scoring time by
+    src/growth_propensity.py — this target represents the underlying
+    "would benefit from an enhanced facility" state, independent of whether
+    the Radar currently trusts the account enough to act on it."""
+    n = len(df)
+    score = (
+        0.045 * df["gst_turnover_growth_yoy"].to_numpy()
+        + 0.035 * df["epfo_employee_count_change_6m"].to_numpy()
+        + 1.10 * df["debt_service_coverage_proxy"].to_numpy()
+        + 0.020 * df["cc_utilization_avg_3m"].to_numpy()
+        + 3.20 * df["monthly_surplus_ratio"].to_numpy()
+        - 0.018 * df["buyer_concentration_top2_pct"].to_numpy()
+        - 0.05 * df["current_dpd"].to_numpy()
+        - 0.35 * df["emi_bounce_count_6m"].to_numpy()
+        + 0.012 * df["upi_pos_collection_ratio"].to_numpy() * 100
+        + rng.normal(0, 1.6, size=n)
+    )
+
+    def prevalence(intercept):
+        p = 1 / (1 + np.exp(-(score + intercept)))
+        return p.mean()
+
+    lo, hi = -20.0, 5.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if prevalence(mid) < target_rate:
+            lo = mid
+        else:
+            hi = mid
+    intercept = (lo + hi) / 2
+
+    prob = 1 / (1 + np.exp(-(score + intercept)))
+    df["growth_need_12m"] = (rng.uniform(0, 1, size=len(df)) < prob).astype(int)
+    return df
+
+
 def generate(n_borrowers: int, months: int, seed: int = RNG_SEED) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     borrowers = generate_borrowers(n_borrowers, rng)
@@ -346,8 +428,9 @@ def generate(n_borrowers: int, months: int, seed: int = RNG_SEED) -> pd.DataFram
     panel = add_epfo_vars(panel, rng)
     panel = add_text_vars(panel, rng)
     panel = compute_target(panel, rng)
+    panel = compute_growth_target(panel, rng)
 
-    panel = panel.drop(columns=["_latent_risk", "_risk_now"])
+    panel = panel.drop(columns=["_latent_risk", "_risk_now", "_anchor_distressed", "_cluster_shock"])
     panel.insert(0, "record_id", [f"REC{i:07d}" for i in range(len(panel))])
     return panel
 
@@ -366,6 +449,8 @@ def main():
 
     print(f"Generated {len(df):,} borrower-month rows for {args.n_borrowers:,} borrowers.")
     print(f"Stress rate: {df['stress_12m'].mean():.2%}")
+    print(f"Growth-need rate: {df['growth_need_12m'].mean():.2%}")
+    print(f"Cluster cells: {df['cluster_id'].nunique()}  Anchor-buyer groups: {df['anchor_buyer_id'].nunique()}")
     print(f"Saved to: {args.out}")
 
 

@@ -10,18 +10,23 @@ required before any of its logic could inform a real lending decision.
 | Item | Value |
 |---|---|
 | Dataset size | 28,000 borrower-month records, 3,500 unique borrowers, 8 months each |
-| Stress rate | 6.52% (target band: 5–8%) |
-| Train / Calibration / Test split | 14,696 / 4,904 / 8,400 rows — split **by borrower_id** (grouped), so no borrower's months appear in more than one split |
-| Models tested | Logistic Regression, Random Forest, XGBoost, LightGBM |
-| Best model selected | Random Forest (`models/feature_list.json → best_model_name`) |
+| Stress rate | 6.57% (target band: 5–8%) |
+| Growth-need rate | 14.07% (`growth_need_12m`, the Growth Propensity Engine's target) |
+| Train / Calibration / Test split | split **by borrower_id** (grouped), so no borrower's months appear in more than one split |
+| Global models compared | Logistic Regression, Random Forest, XGBoost, LightGBM |
+| Best global model selected | Random Forest (`models/feature_list.json → best_model_name`) |
 | Selection criteria | Weighted composite of recall@top-20% risk band, AUC-PR, calibration (1 − Brier), and KS — not accuracy |
-| Calibration method | Isotonic regression, fit on a held-out calibration split distinct from train/test |
-| Held-out test AUC-ROC / AUC-PR | 0.946 / 0.715 |
-| Recall captured in top 20% riskiest accounts | ~90.7% |
-| Top-decile lift | ~7.8x |
+| Calibration method | Isotonic (global/growth) or sigmoid (segment models — smaller calibration sets), on a held-out calibration split distinct from train/test |
+| Held-out test AUC-ROC / AUC-PR (global model) | 0.954 / 0.738 |
+| Recall captured in top 20% riskiest accounts | ~91.8% |
+| Top-decile lift | ~8.0x |
+| Segment-wise models trained | Trader, Manufacturer, Service, NTC, CGTMSE, Thin-file (calibrated); Existing (uncalibrated — too few calibration-set events, shrinkage-discounted) |
+| Survival/timing model | Discrete-time (quarterly) hazard model — see honesty note in Section 3 |
+| Growth propensity model | AUC-ROC ~0.76 on held-out test |
 
 Full metrics, confusion matrix and the calibration curve are in
-`reports/model_performance_report.md` and `models/evaluation_report.json`.
+`reports/model_performance_report.md` and `models/evaluation_report.json`. Per-segment
+metrics and shrinkage weights are in `models/segment_manifest.json`.
 
 ## 2. Why recall at the top 20% risk band drives model selection
 
@@ -56,6 +61,29 @@ are not drawn from, or fitted to, any real bank's book. Specifically:
 that the *pipeline* (imbalance handling, calibration, explainability, action mapping)
 works end-to-end and behaves sensibly — they are not evidence of real-world bank-grade
 predictive performance, and must not be quoted as such outside this hackathon context.
+
+**Additional honesty notes for the newer modules** (`src/segment_models.py`,
+`src/survival_model.py`, `src/graph_contagion.py`, `src/growth_propensity.py`):
+
+- Segment models are trained on only a few hundred synthetic borrowers each. To stop a
+  small, noisy segment sample from swinging a borrower's PD to an extreme, every segment
+  prediction is **shrinkage-blended** toward the global model in proportion to how much
+  calibration evidence that segment has (`segment_models.py::SHRINKAGE_FULL_TRUST_EVENTS`).
+  This is standard partial-pooling practice for small-sample scorecards, not a
+  substitute for training each segment model on a real, much larger population.
+- The survival/timing model's "which quarter will stress occur in" label is a synthetic
+  severity-rank proxy constructed from the same deterioration features used elsewhere
+  (`survival_model.py::assign_synthetic_quarter_labels`) — there is no real event-time
+  data in a synthetic panel. It demonstrates discrete-time hazard modelling mechanics
+  (per-quarter hazard, expected months-to-stress, near-term SMA migration probability),
+  not a validated timing prediction.
+- The graph contagion overlay computes cluster stress from live PD co-movement among
+  borrowers sharing a synthetic anchor-buyer identifier — a fast, fully explainable
+  heuristic, not a trained graph neural network.
+- The growth propensity target is the deliberate mirror image of the stress target,
+  built from expansion/headroom signals at generation time
+  (`data_generator.py::compute_growth_target`). It demonstrates the eligibility-guardrail
+  architecture end-to-end, not a validated revenue-intelligence model.
 
 ## 4. Limitations
 

@@ -128,19 +128,24 @@ ACTION_BULLETS = {
 }
 
 _DRIVER_CLAUSES = {
-    "GST-BANK-MM": "pending GST-bank reconciliation",
+    "GST-BNK-MIS": "pending GST-bank reconciliation",
     "GST-FIL-DLY": "pending review of GST filing delays",
     "CC-UTIL-HI": "with review of cash credit utilization",
     "BUY-CONC-HI": "with review of buyer concentration",
-    "EMI-BOUNCE": "given the EMI bounce pattern",
+    "EMI-BNC-PTN": "given the EMI bounce pattern",
     "DP-EROSION": "given drawing power erosion",
-    "BUR-ENQ-SPIKE": "given the bureau enquiry spike",
-    "EPFO-DECLINE": "given declining employee headcount",
+    "BUR-ENQ-SPK": "given the bureau enquiry spike",
+    "EPFO-DECL": "given declining employee headcount",
     "TXT-STRESS": "given adverse credit officer remarks",
     "RCU-RED-FLAG": "pending RCU / fraud-pattern verification",
-    "CASH-VOL-HI": "given elevated cash-flow volatility",
+    "CF-VOL-HI": "given elevated cash-flow volatility",
     "ITC-RISK": "pending ITC-to-sales review",
     "DSCR-WEAK": "given weak debt service coverage",
+    "FI-NEG-RMK": "pending field-visit follow-up on receivable stretch",
+    "RPT-TXN-RISK": "pending related-party transaction verification",
+    "STK-STMT-DLY": "pending updated stock statement",
+    "SEC-STRESS": "given elevated sector/geography stress",
+    "OPS-CONT-LO": "given weak operating-continuity signals",
 }
 
 _GRADE_HEADLINE = {

@@ -101,18 +101,48 @@ class ReasonCode(BaseModel):
     impact: float
 
 
+class CgtmseSuitability(BaseModel):
+    category: str
+    viability_score: float
+    rationale: str
+    suggested_limit_cap_pct_of_request: int
+    checklist: list[str]
+
+
+class GrowthPropensity(BaseModel):
+    eligible: bool
+    reason: Optional[str] = None
+    growth_propensity_score: Optional[float] = None
+    suggested_product: Optional[str] = None
+    indicative_quantum: Optional[float] = None
+    suggested_outreach_window: Optional[str] = None
+
+
 class ScoreResponse(BaseModel):
+    """The Common Interpretation Layer output contract (Section 8 / Layer 5
+    of the design brief): identical shape regardless of which segment model
+    (or the global fallback) produced the score."""
+
     borrower_id: str
     pd_12m: float
     risk_grade: str
     health_score: float
     health_band: str
+    health_sub_scores: Optional[dict] = None
     data_quality_score: int
+    model_confidence: str
+    sma_migration_probability: Optional[float] = None
+    expected_months_to_stress: Optional[float] = None
+    segment_benchmark_percentile: Optional[float] = None
+    cluster_stress_index: float
+    in_elevated_cluster: bool
     top_risk_drivers: list[ReasonCode]
     top_strength_drivers: list[ReasonCode]
     recommended_action: str
     action_checklist: list[str]
     cgtmse_recommendation: Optional[str] = None
+    cgtmse_suitability: Optional[CgtmseSuitability] = None
+    growth_propensity: GrowthPropensity
     model_version: str
 
 
@@ -132,3 +162,57 @@ class PortfolioSummaryResponse(BaseModel):
     top_10_high_risk_accounts: list[dict]
     sector_wise_summary: list[dict]
     geography_wise_summary: list[dict]
+    cgtmse_portfolio_quality: dict
+    growth_pipeline_summary: dict
+
+
+class CreditTwinTrajectoryPoint(BaseModel):
+    obs_month: int
+    pd_12m: float
+    health_score: float
+    risk_grade: str
+
+
+class CreditTwinCurrent(BaseModel):
+    pd_12m: float
+    health_score: float
+    risk_grade: str
+    sma_migration_probability: Optional[float] = None
+    expected_months_to_stress: Optional[float] = None
+
+
+class CreditTwinResponse(BaseModel):
+    borrower_id: str
+    borrower_name: str
+    segment: Optional[str] = None
+    months_observed: int
+    trajectory: list[CreditTwinTrajectoryPoint]
+    trend: str
+    current: CreditTwinCurrent
+    escalation_note: Optional[str] = None
+    recommended_action: str
+    action_checklist: list[str]
+    on_watchlist: bool
+
+
+class ClusterAlert(BaseModel):
+    anchor_buyer_id: str
+    cluster_id: str
+    sector: str
+    geography: str
+    n_accounts: int
+    avg_pd: float
+    cluster_stress_index: float
+    total_exposure: float
+    message: str
+
+
+class GrowthPipelineAccount(BaseModel):
+    borrower_id: str
+    borrower_name: str
+    segment: str
+    sector: str
+    geography: str
+    risk_grade: str
+    growth_propensity_score: Optional[float] = None
+    growth_suggested_product: Optional[str] = None

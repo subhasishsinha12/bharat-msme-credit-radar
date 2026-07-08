@@ -157,9 +157,18 @@ def add_epfo_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+RELATED_PARTY_KEYWORDS = [
+    "related party transactions suspected", "promoter diverting funds to group entity suspected",
+]
+STOCK_STATEMENT_DELAY_KEYWORDS = ["stock verification could not be completed"]
+
+
 def add_text_features(df: pd.DataFrame) -> pd.DataFrame:
     combined = df[TEXT_COLUMNS].fillna("").agg(" ".join, axis=1).str.lower()
     df["_combined_text"] = combined
+    fi_text = df["fi_remarks"].fillna("").str.lower()
+    cam_text = df["cam_remarks"].fillna("").str.lower()
+    stock_text = df["stock_inspection_remarks"].fillna("").str.lower()
 
     df["risk_keyword_count"] = combined.apply(lambda t: _count_hits(t, NEGATIVE_KEYWORDS))
     df["positive_keyword_count"] = combined.apply(lambda t: _count_hits(t, POSITIVE_KEYWORDS))
@@ -167,6 +176,14 @@ def add_text_features(df: pd.DataFrame) -> pd.DataFrame:
     df["business_stress_keyword_flag"] = combined.apply(lambda t: _any_hit(t, BUSINESS_STRESS_KEYWORDS))
     df["collateral_risk_keyword_flag"] = combined.apply(lambda t: _any_hit(t, COLLATERAL_RISK_KEYWORDS))
     df["management_quality_keyword_flag"] = combined.apply(lambda t: _any_hit(t, MANAGEMENT_QUALITY_KEYWORDS))
+
+    # Source-specific flags (rather than only the combined-text flags above) so
+    # reason codes can point a banker to the exact remark type that moved the
+    # score -- e.g. FI-NEG-RMK cites the field-visit report specifically,
+    # not "some text somewhere."
+    df["fi_negative_remark_flag"] = fi_text.apply(lambda t: _any_hit(t, NEGATIVE_KEYWORDS))
+    df["related_party_keyword_flag"] = cam_text.apply(lambda t: _any_hit(t, RELATED_PARTY_KEYWORDS))
+    df["stock_statement_delay_flag"] = stock_text.apply(lambda t: _any_hit(t, STOCK_STATEMENT_DELAY_KEYWORDS))
 
     raw_score = (
         df["risk_keyword_count"] * 12
@@ -229,7 +246,10 @@ def build_features(df: pd.DataFrame, fit_text_model: bool = True, text_artifacts
 NON_MODEL_COLUMNS = [
     "record_id", "borrower_id", "borrower_name", "obs_month",
     "cam_remarks", "fi_remarks", "rcu_remarks", "collection_remarks", "stock_inspection_remarks",
-    "stress_12m",
+    "stress_12m", "growth_need_12m",
+    # High-cardinality identifiers used by the graph contagion overlay
+    # (src/graph_contagion.py), not fed into the PD models directly.
+    "cluster_id", "anchor_buyer_id",
 ]
 CATEGORICAL_COLUMNS = [
     "segment", "constitution", "sector", "geography", "loan_type",
