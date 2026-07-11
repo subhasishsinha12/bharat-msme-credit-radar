@@ -8,8 +8,8 @@ pymongo>=4.6
 pandas>=2.0
 numpy>=1.24
 scikit-learn>=1.5
-xgboost>=2.0
-lightgbm>=4.0
 shap>=0.44
 joblib>=1.3
 emergentintegrations>=0.2.0
+# Note: xgboost and lightgbm are training-time only (see /app/src/train_model.py).
+# The deployed model is a scikit-learn RandomForest — no XGBoost/LightGBM needed at inference.
