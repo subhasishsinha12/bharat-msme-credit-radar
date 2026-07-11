@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtInr, fmtPct, fmtNum } from "../lib/api";
 import { Panel, GradeBadge, Btn, Loader } from "../components/ui";
 import { Search } from "lucide-react";
@@ -7,21 +7,36 @@ import { Search } from "lucide-react";
 const GRADES = ["Green", "Yellow", "Amber", "Red", "Black"];
 
 export default function Borrowers() {
+  const [sp, setSp] = useSearchParams();
   const [meta, setMeta] = useState(null);
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    search: "",
-    grade: "",
-    sector: "",
-    geography: "",
-    segment: "",
+    search: sp.get("search") || "",
+    grade: sp.get("grade") || "",
+    sector: sp.get("sector") || "",
+    geography: sp.get("geography") || "",
+    segment: sp.get("segment") || "",
     sort_by: "pd_12m",
     order: "desc",
   });
   const [page, setPage] = useState(0);
   const limit = 25;
+
+  // Keep URL and filter state in sync when the URL changes (e.g., drill-down from Portfolio)
+  useEffect(() => {
+    setFilters((f) => ({
+      ...f,
+      search: sp.get("search") || "",
+      grade: sp.get("grade") || "",
+      sector: sp.get("sector") || "",
+      geography: sp.get("geography") || "",
+      segment: sp.get("segment") || "",
+    }));
+    setPage(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sp.toString()]);
 
   useEffect(() => {
     api.get("/metadata").then((r) => setMeta(r.data));
@@ -45,6 +60,11 @@ export default function Borrowers() {
   const updateFilter = (k, v) => {
     setFilters((f) => ({ ...f, [k]: v }));
     setPage(0);
+    // Reflect to URL for shareability / back-button
+    const next = new URLSearchParams(sp);
+    if (v) next.set(k, v);
+    else next.delete(k);
+    setSp(next, { replace: true });
   };
 
   return (

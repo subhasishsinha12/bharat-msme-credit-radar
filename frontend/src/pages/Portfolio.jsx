@@ -123,13 +123,18 @@ export default function Portfolio() {
           </ResponsiveContainer>
           <div className="grid grid-cols-5 gap-3 mt-4">
             {gradeData.map((d) => (
-              <div key={d.grade} className="border border-border bg-bg rounded-sm p-3" data-testid={`grade-cell-${d.grade}`}>
+              <Link
+                key={d.grade}
+                to={`/borrowers?grade=${d.grade}`}
+                className="border border-border bg-bg rounded-sm p-3 hover:bg-bg-hover hover:border-border-strong transition-colors"
+                data-testid={`grade-cell-${d.grade}`}
+              >
                 <GradeBadge grade={d.grade} size="sm" />
                 <div className="font-mono text-lg mt-2">{d.accounts.toLocaleString("en-IN")}</div>
                 <div className="text-[10px] uppercase tracking-widest2 text-fg-faint font-heading mt-1">
                   {fmtInr(d.exposure)}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </Panel>
@@ -238,6 +243,7 @@ export default function Portfolio() {
 
 function SectorGeoTable({ rows, keyField }) {
   const max = Math.max(...rows.map((r) => r.expected_stress_amount || 0), 1);
+  const paramKey = keyField === "sector" ? "sector" : "geography";
   return (
     <div className="space-y-2">
       {rows.slice(0, 10).map((r) => {
@@ -252,7 +258,12 @@ function SectorGeoTable({ rows, keyField }) {
             ? "#FBBF24"
             : "#10B981";
         return (
-          <div key={r[keyField]} className="border border-border bg-bg rounded-sm p-3">
+          <Link
+            key={r[keyField]}
+            to={`/borrowers?${paramKey}=${encodeURIComponent(r[keyField])}`}
+            className="block border border-border bg-bg rounded-sm p-3 hover:bg-bg-hover hover:border-border-strong transition-colors"
+            data-testid={`heatmap-${keyField}-${r[keyField]}`}
+          >
             <div className="flex items-center justify-between text-xs mb-2">
               <span className="text-fg">{r[keyField]}</span>
               <span className="font-mono text-fg-muted">
@@ -270,7 +281,7 @@ function SectorGeoTable({ rows, keyField }) {
                 {fmtInr(r.expected_stress_amount)}
               </span>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

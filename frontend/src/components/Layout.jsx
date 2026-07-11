@@ -1,11 +1,12 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, UploadCloud, Radar } from "lucide-react";
+import { LayoutDashboard, Users, FileText, UploadCloud, Radar, TrendingUp } from "lucide-react";
 import { cn } from "../lib/api";
 
 const NAV = [
   { to: "/", label: "Portfolio", icon: LayoutDashboard, end: true, testId: "nav-portfolio" },
   { to: "/borrowers", label: "Borrowers", icon: Users, testId: "nav-borrowers" },
+  { to: "/growth", label: "Growth Radar", icon: TrendingUp, testId: "nav-growth" },
   { to: "/notes", label: "Notes NLP", icon: FileText, testId: "nav-notes" },
   { to: "/upload", label: "CSV Score", icon: UploadCloud, testId: "nav-upload" },
 ];

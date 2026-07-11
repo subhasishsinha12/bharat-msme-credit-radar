@@ -40,22 +40,34 @@ per-borrower PD, Health Score, Risk Grade, SHAP reason codes and banker actions.
 - `GET /api/portfolio/summary` — aggregate risk view (grades, sectors, geographies, segments, top-10 high risk, expected stress amount)
 - `GET /api/borrowers` — paginated list with filters (search / grade / sector / geography / segment) and sort
 - `GET /api/borrowers/{id}` — full scored detail: PD, health score, sub-scores, top risk/strength drivers, action narrative + checklist, CGTMSE recommendation, alternate & structured signals, banker remarks
+- `GET /api/borrowers/{id}/history` — 8-month scored trajectory (PD, health, GST turnover, DPD, CC utilization, bureau score) — the "MSME Credit Twin"
 - `POST /api/borrowers/score` — score a partial payload; persists to `scoring_history`
 - `POST /api/borrowers/bulk-score` — multipart CSV upload; imputes missing columns from training-population defaults, returns scored rows
+- `GET /api/growth/summary` — revenue pipeline: total candidates, hot count, band distribution, top suggested products
+- `GET /api/growth/candidates` — Growth Propensity Engine: filterable candidate list with growth score, suggested product, indicative quantum, outreach window
 - `POST /api/notes/analyze` — LLM (Gemini 3 Flash preview via emergentintegrations) extracts stress/fraud/sentiment signals from free-text banker remarks; persists to `notes_analyses`
 - `GET /api/notes/history` — recent LLM analyses
 
 ### Frontend pages
-- `/` **Portfolio Command Center** — KPI row (accounts, exposure, expected stress, avg health), risk grade distribution bar+pie, sector & geography heatmaps, top-10 high risk action queue
-- `/borrowers` **Borrowers list** — searchable filtered paginated table, click through to detail
-- `/borrowers/:id` **Borrower detail** — 12M PD hero, MSME Health Score radial gauge, exposure panel with CGTMSE note, banker action narrative + checklist, top 5 risk & 5 strength drivers (terminal-style reason codes), health sub-scores bars, alternate-signals grid, banker remarks with a one-click LLM-analysis handoff
-- `/notes` **Banker Notes Analyzer** — free-text inputs for CAM/FI/RCU/collection/stock notes → LLM extracts structured signals with severity, evidence quote, explanation, sentiment, recommended action, summary; recent-analyses history
-- `/upload` **CSV Bulk Scoring** — drop-zone upload, CSV template download, scored results table with per-row grade
+- `/` **Portfolio Command Center** — KPI row, risk grade distribution bar+pie, sector & geography heatmaps (clickable → drill-down to filtered borrowers), top-10 high risk action queue
+- `/borrowers` **Borrowers list** — searchable/filterable/paginated table with URL-param sync (shareable filtered views)
+- `/borrowers/:id` **Borrower detail** — 12M PD hero, MSME Health Score radial gauge, exposure panel with CGTMSE note, banker action, top 5 risk & 5 strength drivers, **8-month MSME Credit Twin trajectory (PD/Health/GST/DPD/CC/Bureau charts)**, health sub-scores, alternate signals, banker remarks with one-click NLP handoff, "Officer Memo" button
+- `/borrowers/:id/memo` **Officer Memo** — standalone print-friendly white letterhead, A4 CSS `@page`, PDF-ready via browser Save as PDF
+- `/growth` **Growth Radar** — Growth Propensity Engine dashboard: candidate count, priority+hot, revenue pipeline, propensity band distribution (Priority/Hot/Emerging/Passive/Dormant), suggested products breakdown, filterable candidate table with growth score, indicative quantum, outreach window
+- `/notes` **Banker Notes Analyzer** — LLM-powered structured signal extraction
+- `/upload` **CSV Bulk Scoring** — drop-zone upload with template CSV
 
-## Tech Stack
-- Backend: FastAPI, Motor/MongoDB, Pandas, XGBoost, LightGBM, SHAP, scikit-learn, joblib, emergentintegrations
-- Frontend: React 18, react-router-dom, Recharts, Tailwind, sonner, lucide-react
-- LLM: Gemini 3 Flash preview via Emergent Universal Key
+## Growth Propensity Engine Logic (v1)
+Weighted composite (28% GST growth YoY, 18% CC utilization headroom, 14% cashflow surplus, 12% bureau, 10% DSCR, 10% EPFO delta, 8% inverse PD) with penalties for bureau enquiries, and hard gates that disqualify Red/Black grade, health<55, PD>15%, fraud flag or GST-bank mismatch.
+
+Suggested product logic:
+- CGTMSE eligible + turnover growth >8% → CGTMSE-backed Enhancement
+- CC util ≥75% + growth >5% → CC Limit Enhancement
+- CC util <45% + growth >10% → Term Loan / Capex
+- Turnover growth >15% → New Working Capital
+- Otherwise → Product Refresh
+
+Indicative quantum: 15-40% of sanctioned limit based on growth & utilization. Outreach window: 0-30 / 30-60 / 60-90 days by score.
 
 ## Prioritized Backlog / Next Actions
 - P1: Portfolio-page filters (drill into a specific sector / geography → filtered borrower list)

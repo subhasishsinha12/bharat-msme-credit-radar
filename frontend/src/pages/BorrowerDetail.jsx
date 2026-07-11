@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, fmtInr, fmtPct, fmtNum, GRADE_META } from "../lib/api";
 import { Panel, Metric, GradeBadge, Loader, Btn } from "../components/ui";
-import { ArrowLeft, TrendingDown, TrendingUp, Shield, ClipboardList } from "lucide-react";
+import TrajectoryPanel from "../components/TrajectoryPanel";
+import { ArrowLeft, TrendingDown, TrendingUp, Shield, ClipboardList, Printer } from "lucide-react";
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from "recharts";
 
 export default function BorrowerDetail() {
@@ -42,7 +43,12 @@ export default function BorrowerDetail() {
             <span className="font-mono">{fmtNum(data.business_vintage_years, 1)}y</span>
           </div>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          <Link to={`/borrowers/${data.borrower_id}/memo`}>
+            <Btn variant="ghost" testId="print-memo-btn">
+              <Printer size={14} className="mr-2" /> Officer Memo
+            </Btn>
+          </Link>
           <GradeBadge grade={data.risk_grade} size="lg" testId="grade-badge-hero" />
         </div>
       </div>
@@ -169,6 +175,9 @@ export default function BorrowerDetail() {
           testId="strength-drivers"
         />
       </div>
+
+      {/* Trajectory (MSME Credit Twin) */}
+      <TrajectoryPanel borrowerId={data.borrower_id} />
 
       {/* Sub scores */}
       {data.health_sub_scores && (

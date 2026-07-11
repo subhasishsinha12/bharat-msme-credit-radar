@@ -74,14 +74,134 @@ def _sanitize(obj: Any) -> Any:
     return obj
 
 
+def compute_growth_propensity(portfolio: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
+    """Growth Propensity Engine (Section 12 of the design doc).
+
+    Scores healthy MSMEs on their likelihood of needing enhanced working-capital
+    or a new term loan within 6-12 months. Emits a Growth Propensity Score
+    (0-100), a suggested product, an indicative quantum, and an outreach window.
+    """
+    import numpy as np
+
+    df = portfolio.copy()
+    df = df.merge(
+        snapshot[
+            [
+                "borrower_id", "gst_turnover_growth_yoy", "cc_utilization_avg_3m",
+                "epfo_employee_count_change_6m", "bureau_score",
+                "bureau_enquiry_count_3m", "cashflow_volatility_score",
+                "monthly_surplus_ratio", "debt_service_coverage_proxy",
+                "buyer_concentration_top2_pct", "gst_turnover_12m",
+                "avg_monthly_bank_credit_6m",
+            ]
+        ],
+        on="borrower_id", how="left", suffixes=("", "_snap"),
+    )
+
+    # Signal components (each 0-100 scale)
+    turnover = df["gst_turnover_growth_yoy"].clip(-30, 40).fillna(0)
+    turnover_sig = ((turnover + 10) / 50 * 100).clip(0, 100)  # -10% -> 0, 40% -> 100
+
+    utilization = df["cc_utilization_avg_3m"].clip(0, 100).fillna(50)
+    util_head_sig = ((utilization - 40) / 45 * 100).clip(0, 100)  # 75-85% -> highest need
+
+    surplus = df["monthly_surplus_ratio"].clip(-0.5, 0.5).fillna(0)
+    cashflow_sig = ((surplus + 0.5) / 1.0 * 100).clip(0, 100)
+
+    dscr = df["debt_service_coverage_proxy"].clip(0, 3).fillna(1)
+    dscr_sig = ((dscr - 0.5) / 2.0 * 100).clip(0, 100)
+
+    epfo = df["epfo_employee_count_change_6m"].clip(-30, 30).fillna(0)
+    epfo_sig = ((epfo + 5) / 30 * 100).clip(0, 100)
+
+    bureau = df["bureau_score"].clip(300, 900).fillna(700)
+    bureau_sig = ((bureau - 600) / 300 * 100).clip(0, 100)
+
+    enq = df["bureau_enquiry_count_3m"].fillna(0)
+    enq_penalty = (enq.clip(0, 12) * 6).clip(0, 60)
+
+    fraud_flag = df.get("fraud_keyword_flag", 0)
+
+    # Weighted composite
+    raw_score = (
+        0.28 * turnover_sig
+        + 0.18 * util_head_sig
+        + 0.14 * cashflow_sig
+        + 0.10 * dscr_sig
+        + 0.10 * epfo_sig
+        + 0.12 * bureau_sig
+        + 0.08 * (100 - df["pd_12m"].clip(0, 1) * 100)
+    ) - enq_penalty * 0.3
+
+    # Hard gates: unhealthy borrowers cannot be growth candidates
+    unhealthy = (
+        (df["risk_grade"].isin(["Red", "Black"]))
+        | (df["health_score"] < 55)
+        | (df["pd_12m"] > 0.15)
+        | (fraud_flag.astype(float) > 0)
+        | (df.get("gst_bank_mismatch_flag", 0).astype(float) > 0)
+    )
+    raw_score = np.where(unhealthy, 0, raw_score)
+
+    df["growth_score"] = np.clip(raw_score, 0, 100).round(1)
+
+    def _product(row: pd.Series) -> str:
+        util = row["cc_utilization_avg_3m"] or 0
+        growth = row["gst_turnover_growth_yoy"] or 0
+        cgt = str(row.get("CGTMSE_flag", "No")).lower() == "yes"
+        if cgt and growth > 8:
+            return "CGTMSE-backed Enhancement"
+        if util >= 75 and growth > 5:
+            return "Cash Credit Limit Enhancement"
+        if util < 45 and growth > 10:
+            return "Term Loan / Capex"
+        if growth > 15:
+            return "New Working Capital"
+        return "Product Refresh"
+
+    def _quantum(row: pd.Series) -> float:
+        base = float(row.get("sanctioned_limit") or 0)
+        growth = float(row.get("gst_turnover_growth_yoy") or 0)
+        util = float(row.get("cc_utilization_avg_3m") or 0)
+        pct = 0.15
+        if growth > 10:
+            pct += 0.10
+        if growth > 20:
+            pct += 0.10
+        if util >= 80:
+            pct += 0.05
+        return round(base * pct, -3)
+
+    def _window(score: float) -> str:
+        if score >= 75:
+            return "0-30 days"
+        if score >= 60:
+            return "30-60 days"
+        return "60-90 days"
+
+    df["suggested_product"] = df.apply(_product, axis=1)
+    df["indicative_quantum"] = df.apply(_quantum, axis=1)
+    df["outreach_window"] = df["growth_score"].apply(_window)
+    df["growth_band"] = pd.cut(
+        df["growth_score"],
+        bins=[-1, 30, 55, 70, 85, 101],
+        labels=["Dormant", "Passive", "Emerging", "Hot", "Priority"],
+    ).astype(str)
+
+    return df
+
+
 def load_engine() -> None:
     scorer = CreditRadarScorer()
     raw = pd.read_csv(DATA_CSV)
     snapshot = latest_snapshot(raw)
     scored = scorer.score_dataframe(snapshot)
+    growth = compute_growth_propensity(scored, snapshot)
     STATE["scorer"] = scorer
     STATE["portfolio"] = scored
     STATE["snapshot"] = snapshot
+    STATE["panel"] = raw
+    STATE["growth"] = growth
 
 
 @app.on_event("startup")
@@ -474,6 +594,95 @@ async def analyze_banker_notes(request: BankerNotesRequest) -> dict:
     await db.notes_analyses.insert_one(doc)
 
     return _sanitize({"analysis": parsed, "id": doc["id"]})
+
+
+@api.get("/growth/summary")
+async def growth_summary() -> dict:
+    g = STATE["growth"]
+    band_counts = g["growth_band"].value_counts().to_dict()
+    total_quantum = float(g[g["growth_score"] >= 55]["indicative_quantum"].sum())
+    top_products = g[g["growth_score"] >= 55]["suggested_product"].value_counts().to_dict()
+    hot_count = int((g["growth_score"] >= 70).sum())
+    return _sanitize({
+        "total_candidates": int((g["growth_score"] > 0).sum()),
+        "hot_candidates": hot_count,
+        "band_counts": {k: int(v) for k, v in band_counts.items()},
+        "revenue_pipeline": total_quantum,
+        "top_products": {k: int(v) for k, v in top_products.items()},
+        "average_growth_score": float(g[g["growth_score"] > 0]["growth_score"].mean() or 0),
+    })
+
+
+@api.get("/growth/candidates")
+async def growth_candidates(
+    band: Optional[str] = None,
+    sector: Optional[str] = None,
+    geography: Optional[str] = None,
+    min_score: float = 0,
+    sort_by: str = "growth_score",
+    order: str = "desc",
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
+    g = STATE["growth"]
+    view = g[g["growth_score"] >= min_score].copy()
+    if band:
+        view = view[view["growth_band"] == band]
+    if sector:
+        view = view[view["sector"] == sector]
+    if geography:
+        view = view[view["geography"] == geography]
+
+    if sort_by in view.columns:
+        view = view.sort_values(sort_by, ascending=(order == "asc"))
+
+    total = int(len(view))
+    page = view.iloc[offset : offset + limit][
+        [
+            "borrower_id", "borrower_name", "segment", "sector", "geography",
+            "sanctioned_limit", "outstanding_amount", "gst_turnover_12m",
+            "gst_turnover_growth_yoy", "cc_utilization_avg_3m", "bureau_score",
+            "pd_12m", "risk_grade", "health_score",
+            "growth_score", "growth_band", "suggested_product",
+            "indicative_quantum", "outreach_window",
+        ]
+    ].to_dict(orient="records")
+
+    return _sanitize({"total": total, "candidates": page, "limit": limit, "offset": offset})
+
+
+@api.get("/borrowers/{borrower_id}/history")
+async def borrower_history(borrower_id: str) -> dict:
+    panel: pd.DataFrame = STATE["panel"]
+    scorer = get_scorer()
+
+    hist = panel[panel["borrower_id"] == borrower_id].sort_values("obs_month")
+    if hist.empty:
+        raise HTTPException(404, f"No history for {borrower_id}")
+
+    scored_hist = scorer.score_dataframe(hist).reset_index(drop=True)
+    hist_r = hist.reset_index(drop=True)
+
+    trajectory = []
+    for i in range(len(scored_hist)):
+        s = scored_hist.iloc[i]
+        r = hist_r.iloc[i]
+        trajectory.append({
+            "obs_month": int(r["obs_month"]),
+            "pd_12m": float(s["pd_12m"]),
+            "risk_grade": s["risk_grade"],
+            "health_score": float(s["health_score"]),
+            "current_dpd": float(r.get("current_dpd") or 0),
+            "gst_turnover_12m": float(r.get("gst_turnover_12m") or 0),
+            "gst_turnover_growth_yoy": float(r.get("gst_turnover_growth_yoy") or 0),
+            "cc_utilization_avg_3m": float(r.get("cc_utilization_avg_3m") or 0),
+            "avg_monthly_bank_credit_6m": float(r.get("avg_monthly_bank_credit_6m") or 0),
+            "bank_credit_to_gst_sales_ratio": float(r.get("bank_credit_to_gst_sales_ratio") or 0),
+            "bureau_score": float(r.get("bureau_score") or 0),
+            "emi_bounce_count_6m": float(r.get("emi_bounce_count_6m") or 0),
+        })
+
+    return _sanitize({"borrower_id": borrower_id, "trajectory": trajectory})
 
 
 @api.get("/notes/history")
