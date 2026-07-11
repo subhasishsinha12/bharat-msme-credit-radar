@@ -24,3 +24,10 @@ Thumbs.db
 
 # Large regenerable intermediate artifact (recreated by src/train_model.py)
 models/_test_split_raw.csv
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
