@@ -24,9 +24,8 @@ Thumbs.db
 
 # Large regenerable intermediate artifact (recreated by src/train_model.py)
 models/_test_split_raw.csv
-.env
-.env.*
-*.env
+# Note: .env files are intentionally committed — they hold non-secret
+# deployment configuration and are auto-managed by the Emergent platform.
 credentials.json
 *.pem
 *.key
