@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { Link } from "react-router-dom";
 
+import { Activity, AlertOctagon, Sparkles } from "lucide-react";
+
 const GRADE_ORDER = ["Green", "Yellow", "Amber", "Red", "Black"];
 
 export default function Portfolio() {
@@ -67,8 +69,12 @@ export default function Portfolio() {
             <div className="font-mono tracking-tighter mt-2 text-4xl font-medium text-grade-red">
               {fmtInr(data.expected_stress_amount)}
             </div>
-            <div className="text-[10px] uppercase tracking-widest2 text-fg-faint font-heading mt-1">
-              {fmtPct(data.expected_stress_amount / data.total_exposure)} of book
+            <div className="text-[10px] uppercase tracking-widest2 text-fg-faint font-heading mt-1 flex items-center gap-1">
+              {data.stress_mom_delta > 0 ? "▲" : "▼"}{" "}
+              <span className={data.stress_mom_delta > 0 ? "text-grade-red" : "text-grade-green"}>
+                {fmtInr(Math.abs(data.stress_mom_delta))} MoM
+              </span>
+              <span className="text-fg-faint">· {fmtPct(data.expected_stress_amount / data.total_exposure)} of book</span>
             </div>
           </div>
         </Panel>
@@ -182,6 +188,88 @@ export default function Portfolio() {
           </div>
         </Panel>
       </div>
+
+      {/* Action Queue + Cluster Alerts + Growth Radar tile */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Panel title="Banker Action Queue" testId="action-queue-panel" className="lg:col-span-2">
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { k: "field_visits", label: "Field Visits", color: "#F59E0B" },
+              { k: "stock_audits", label: "Stock Audits", color: "#EF4444" },
+              { k: "gst_bank_recon_reviews", label: "GST-Bank Recon", color: "#818CF8" },
+              { k: "enhancement_freezes", label: "Enhancement Freeze", color: "#FBBF24" },
+              { k: "urgent_recoveries", label: "Urgent Recovery", color: "#a1a1aa" },
+              { k: "early_engagement_watchlist", label: "Early Engagement", color: "#10B981" },
+            ].map((it) => (
+              <Link
+                key={it.k}
+                to="/borrowers?grade=Red"
+                className="border border-border bg-bg rounded-sm p-3 hover:bg-bg-hover transition-colors"
+                data-testid={`aq-${it.k}`}
+              >
+                <div className="text-[10px] uppercase tracking-widest2 font-heading" style={{ color: it.color }}>
+                  {it.label}
+                </div>
+                <div className="font-mono text-3xl mt-1">
+                  {(data.action_queue?.[it.k] || 0).toLocaleString("en-IN")}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Growth Radar" testId="growth-tile">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading">
+                Pre-Qualified Pipeline
+              </div>
+              <div className="font-mono text-4xl mt-2 font-medium text-primary">
+                {fmtInr(data.growth_radar_tile?.pipeline || 0)}
+              </div>
+              <div className="text-sm text-fg-muted mt-1">
+                <span className="font-mono text-grade-green">{data.growth_radar_tile?.candidates || 0}</span> healthy accounts
+                flagged for WC enhancement or new term loan
+              </div>
+            </div>
+            <Sparkles size={18} className="text-primary mt-1" />
+          </div>
+          <Link
+            to="/growth"
+            className="mt-4 inline-flex items-center gap-2 text-xs uppercase tracking-widest2 font-heading text-primary hover:text-blue-400"
+            data-testid="growth-tile-link"
+          >
+            Open Growth Radar →
+          </Link>
+        </Panel>
+      </div>
+
+      {/* Cluster contagion alerts */}
+      {(data.cluster_alerts || []).length > 0 && (
+        <Panel title="Cluster Contagion Alerts" testId="cluster-alerts">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {data.cluster_alerts.map((a, i) => (
+              <Link
+                key={i}
+                to={`/borrowers?sector=${encodeURIComponent(a.sector)}&geography=${encodeURIComponent(a.geography)}`}
+                className="border border-grade-amber/40 bg-grade-amber/5 rounded-sm p-3 hover:border-grade-amber transition-colors"
+                data-testid={`cluster-alert-${i}`}
+              >
+                <div className="flex items-start gap-2">
+                  <AlertOctagon size={14} className="text-grade-amber mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-fg">{a.message}</div>
+                    <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading mt-2 flex gap-3">
+                      <span>Exposure: <span className="font-mono text-fg">{fmtInr(a.exposure)}</span></span>
+                      <span>Expected Stress: <span className="font-mono text-grade-red">{fmtInr(a.expected_stress)}</span></span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       {/* Sector & geography heatmaps */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

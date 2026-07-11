@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, UploadCloud, Radar, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users, FileText, UploadCloud, Radar, TrendingUp, Activity } from "lucide-react";
 import { cn } from "../lib/api";
 
 const NAV = [
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/growth", label: "Growth Radar", icon: TrendingUp, testId: "nav-growth" },
   { to: "/notes", label: "Notes NLP", icon: FileText, testId: "nav-notes" },
   { to: "/upload", label: "CSV Score", icon: UploadCloud, testId: "nav-upload" },
+  { to: "/performance", label: "Model Perf", icon: Activity, testId: "nav-performance" },
 ];
 
 export default function Layout({ children }) {

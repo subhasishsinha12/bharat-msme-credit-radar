@@ -8,6 +8,7 @@ import NotesAnalyzer from "./pages/NotesAnalyzer";
 import BulkUpload from "./pages/BulkUpload";
 import GrowthRadar from "./pages/GrowthRadar";
 import OfficerMemo from "./pages/OfficerMemo";
+import ModelPerformance from "./pages/ModelPerformance";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="/growth" element={<GrowthRadar />} />
                 <Route path="/notes" element={<NotesAnalyzer />} />
                 <Route path="/upload" element={<BulkUpload />} />
+                <Route path="/performance" element={<ModelPerformance />} />
               </Routes>
             </Layout>
           }

@@ -140,6 +140,121 @@ export default function BorrowerDetail() {
         </Panel>
       </div>
 
+      {/* SMA migration + Confidence + Segment Benchmark row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Panel title="SMA Migration Probability" testId="sma-panel">
+          <div className="space-y-3">
+            {[
+              { k: "sma_0_to_1", label: "SMA-0 → SMA-1", desc: "Overdue 0-30 days" },
+              { k: "sma_1_to_2", label: "SMA-1 → SMA-2", desc: "Overdue 30-60 days" },
+              { k: "sma_2_to_npa", label: "SMA-2 → NPA", desc: "Overdue 60-90 days" },
+            ].map((it) => {
+              const v = data.sma_migration?.[it.k] || 0;
+              const color = v > 0.5 ? "#EF4444" : v > 0.2 ? "#F59E0B" : "#10B981";
+              return (
+                <div key={it.k}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-fg-muted">{it.label}</span>
+                    <span className="font-mono" style={{ color }}>{fmtPct(v, 1)}</span>
+                  </div>
+                  <div className="h-1 bg-bg mt-1">
+                    <div style={{ width: `${v * 100}%`, background: color, height: "100%" }} />
+                  </div>
+                  <div className="text-[10px] uppercase tracking-widest2 text-fg-faint font-heading mt-1">{it.desc}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+
+        <Panel title="Model Confidence" testId="confidence-panel">
+          <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading">Confidence Score</div>
+          <div className="font-mono text-5xl tracking-tighter mt-2" style={{ color: (data.confidence_score || 0) >= 75 ? "#10B981" : (data.confidence_score || 0) >= 60 ? "#F59E0B" : "#EF4444" }}>
+            {data.confidence_score}%
+          </div>
+          <div className="h-2 bg-bg mt-3">
+            <div style={{ width: `${data.confidence_score || 0}%`, height: "100%", background: (data.confidence_score || 0) >= 75 ? "#10B981" : "#F59E0B" }} />
+          </div>
+          <div className="text-xs text-fg-muted mt-3">
+            Combines data quality ({data.data_quality_score}/100) and SHAP-driver separation for this borrower.
+          </div>
+        </Panel>
+
+        <Panel title="Segment Benchmark" testId="segment-benchmark">
+          {data.segment_benchmark ? (
+            <div>
+              <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading">
+                vs {data.segment_benchmark.segment} peers ({data.segment_benchmark.peer_count.toLocaleString("en-IN")})
+              </div>
+              <div className="mt-3 space-y-3">
+                <PctBar
+                  label="PD Percentile"
+                  value={data.segment_benchmark.percentile_pd}
+                  higherIsWorse={true}
+                  note={`Borrower ${fmtPct(data.segment_benchmark.borrower_pd, 1)} · Peer avg ${fmtPct(data.segment_benchmark.peer_avg_pd, 1)}`}
+                />
+                <PctBar
+                  label="Health Percentile"
+                  value={data.segment_benchmark.percentile_health}
+                  higherIsWorse={false}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-fg-muted">Segment benchmark unavailable</div>
+          )}
+        </Panel>
+      </div>
+
+      {/* Data Trust + GST Authenticity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Panel title="Data Trust · Fraud Intelligence" testId="data-trust-panel">
+          {data.data_trust && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading">Data Quality</div>
+                  <div className="font-mono text-3xl mt-1 text-grade-green">{data.data_trust.data_quality_score}/100</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading">Fraud Score</div>
+                  <div className="font-mono text-3xl mt-1" style={{ color: data.data_trust.fraud_score > 50 ? "#EF4444" : data.data_trust.fraud_score > 25 ? "#F59E0B" : "#10B981" }}>
+                    {data.data_trust.fraud_score}/100
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                {Object.entries(data.data_trust.components || {}).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between text-xs">
+                    <span className="text-fg-muted uppercase tracking-widest2 font-heading">{k.replace(/_/g, " ")}</span>
+                    <span className="font-mono" style={{ color: v > 0 ? "#EF4444" : "#10B981" }}>
+                      {v > 0 ? "FLAGGED" : "CLEAN"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Panel>
+
+        <Panel title="GST Authenticity Engine" testId="gst-authenticity-panel">
+          {data.gst_authenticity && (
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <GstCell label="GST Status" value={data.gst_authenticity.gst_status} />
+              <GstCell label="Registration Age" value={`${fmtNum(data.gst_authenticity.gst_registration_age_years, 1)}y`} />
+              <GstCell label="Filing Delays 6M" value={fmtNum(data.gst_authenticity.gst_filing_delay_count_6m, 0)} risk={data.gst_authenticity.gst_filing_delay_count_6m > 2} />
+              <GstCell label="GSTR1 vs 3B Mismatch" value={`${fmtNum(data.gst_authenticity.gstr1_vs_3b_mismatch_pct, 1)}%`} risk={data.gst_authenticity.gstr1_vs_3b_mismatch_pct > 15} />
+              <GstCell label="ITC-to-Sales" value={fmtNum(data.gst_authenticity.itc_to_sales_ratio, 3)} risk={data.gst_authenticity.itc_to_sales_ratio > 0.9} />
+              <GstCell label="E-way Bill Mismatch" value={data.gst_authenticity.eway_bill_mismatch_flag > 0 ? "FLAGGED" : "Clean"} risk={data.gst_authenticity.eway_bill_mismatch_flag > 0} />
+              <GstCell label="Nil Returns 12M" value={fmtNum(data.gst_authenticity.nil_return_count_12m, 0)} risk={data.gst_authenticity.nil_return_count_12m > 0} />
+              <GstCell label="Sudden Turnover Spike" value={data.gst_authenticity.sudden_turnover_spike_flag > 0 ? "FLAGGED" : "Clean"} risk={data.gst_authenticity.sudden_turnover_spike_flag > 0} />
+              <GstCell label="Top-2 Buyers %" value={`${fmtNum(data.gst_authenticity.buyer_concentration_top2_pct, 0)}%`} risk={data.gst_authenticity.buyer_concentration_top2_pct > 60} />
+              <GstCell label="Top-2 Suppliers %" value={`${fmtNum(data.gst_authenticity.supplier_concentration_top2_pct, 0)}%`} risk={data.gst_authenticity.supplier_concentration_top2_pct > 60} />
+            </div>
+          )}
+        </Panel>
+      </div>
+
       {/* Recommended action */}
       <Panel title="Banker Action" testId="action-panel">
         <div className="flex items-start gap-3">
@@ -271,4 +386,32 @@ function healthColor(v) {
   if (v >= 50) return "#FBBF24";
   if (v >= 35) return "#F59E0B";
   return "#EF4444";
+}
+
+function PctBar({ label, value, higherIsWorse, note }) {
+  const v = Number(value) || 0;
+  const bad = higherIsWorse ? v > 70 : v < 30;
+  const mid = higherIsWorse ? v > 40 : v < 60;
+  const color = bad ? "#EF4444" : mid ? "#F59E0B" : "#10B981";
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-fg-muted">{label}</span>
+        <span className="font-mono" style={{ color }}>{v.toFixed(0)}%</span>
+      </div>
+      <div className="h-1 bg-bg mt-1">
+        <div style={{ width: `${v}%`, background: color, height: "100%" }} />
+      </div>
+      {note && <div className="text-[10px] uppercase tracking-widest2 text-fg-faint font-heading mt-1">{note}</div>}
+    </div>
+  );
+}
+
+function GstCell({ label, value, risk }) {
+  return (
+    <div className="border border-border bg-bg rounded-sm p-2">
+      <div className="text-[10px] uppercase tracking-widest2 text-fg-muted font-heading">{label}</div>
+      <div className="font-mono mt-1" style={{ color: risk ? "#EF4444" : "#F8FAFC" }}>{value ?? "—"}</div>
+    </div>
+  );
 }
