@@ -1,0 +1,111 @@
+{
+  "theme": "dark",
+  "typography": {
+    "headings": {
+      "font_family": "Chivo, sans-serif",
+      "weight": "font-light to font-medium",
+      "letter_spacing": "tracking-tight"
+    },
+    "body": {
+      "font_family": "IBM Plex Sans, sans-serif",
+      "weight": "font-normal"
+    },
+    "data_and_numbers": {
+      "font_family": "JetBrains Mono, monospace",
+      "instruction": "Use strictly for tabular data, metrics, and KPI readouts to ensure vertical alignment of numbers."
+    },
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl",
+      "h2": "text-xl sm:text-2xl",
+      "h3": "text-lg",
+      "metrics": "text-4xl sm:text-5xl tracking-tighter",
+      "body": "text-sm",
+      "labels": "text-xs uppercase tracking-[0.2em] text-muted-foreground"
+    }
+  },
+  "colors": {
+    "archetype": "Swiss High-Contrast / Terminal Dark",
+    "background": {
+      "default": "#050505",
+      "surface": "#0A0A0A",
+      "panel": "#121212"
+    },
+    "text": {
+      "primary": "#F8FAFC",
+      "secondary": "#94A3B8",
+      "muted": "#475569"
+    },
+    "border": "#27272A",
+    "primary": "#2563EB",
+    "semantic_risk_grades": {
+      "Green": "#10B981",
+      "Yellow": "#FBBF24",
+      "Amber": "#F59E0B",
+      "Red": "#EF4444",
+      "Black": "#3F3F46"
+    },
+    "instructions": "NO gradients. NO purple. Use flat colors. Use semantic colors strictly for risk indicating. Primary actions should be a stark blue or white."
+  },
+  "layouts": {
+    "grid_system": "High Density Grid (Mode B)",
+    "spacing": "Dense. Use gap-4 or gap-6. Padding p-4 to p-6 inside panels.",
+    "borders": "Expose the skeleton. Use 1px border-border on all cards and grid items to create a 'Command Center' table-like structure. Remove radii (rounded-none) or use max rounded-sm (2px) to keep it brutalist/bank-grade.",
+    "hierarchy": "Top-left hero indicator (PD Score / Health Score). Progressive disclosure for deep data."
+  },
+  "components": {
+    "surfaces": "Flat Solid only. Absolutely NO glassmorphism. NO shadows. Bank grade data requires 100% opacity for precise legibility.",
+    "cards": "border border-zinc-800 bg-[#0A0A0A] rounded-sm p-5.",
+    "charts": "Use Recharts. Use monochromatic tones for structural data, and semantic colors (Green/Yellow/Red) ONLY to indicate risk levels. Strip away gridlines.",
+    "data_tables": "Dense rows. JetBrains mono for numbers. Right-align numeric columns.",
+    "badges": "Square corners. 1px border. Background opacity 10% of semantic color, text 100% semantic color."
+  },
+  "motion": {
+    "philosophy": "Minimalist, instant feedback.",
+    "interactions": "Hover states must increase contrast (e.g., bg-zinc-800 to bg-zinc-700). 0.15s ease transitions. No bouncy physics."
+  },
+  "visual_enhancers": {
+    "textures": "None. Keep it digitally pure and sterile.",
+    "icons": "Phosphor Icons (Duotone or Regular) - dense, precise, technical.",
+    "explainability_panels": "SHAP-style reason codes should look like terminal output or precise logs. Monospace font for the feature names, standard font for the human-readable explanation."
+  },
+  "accessibility": {
+    "contrast": "Ensure minimum 4.5:1 for all text. Semantic colors on dark backgrounds must be checked for legibility.",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute."
+  },
+  "media": {
+    "image_urls": {
+      "banker_avatar": {
+        "url": "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBiYW5rZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODM3OTA2NDR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Professional banker portrait for user profile"
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Build a Dark Theme default application.",
+    "Implement a dashboard with a sidebar navigation and a top header. Ensure the header has a solid background.",
+    "For the Borrower detail page, create a dense, metrics-heavy layout using a 12-column grid. The 12-month PD and MSME Health Score should be the largest, most prominent metrics.",
+    "Use JetBrains Mono for all numeric values, scores, and currency.",
+    "For the Explainable AI panel (Top 5 Risk/Strength Drivers), use a layout resembling technical logs (combining monospace feature names with standard font explanations).",
+    "Semantic colors MUST be used exactly as defined for the Green/Yellow/Amber/Red/Black grading system.",
+    "Use Recharts for the PD gauge, trend lines, and portfolio heatmap. Remove chart grid lines to maximize the data-to-ink ratio.",
+    "DO NOT use generic purple/blue gradients or glassmorphism. Stick to flat, solid backgrounds with sharp 1px borders.",
+    "Use Phosphor icons for all iconography.",
+    "Ensure all buttons and inputs have high-contrast focus and hover states.",
+    "Add 'data-testid' to all interactive and data-display components."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) ONLY IF explicitly allowed by context. In this banking app, AVOID IT.",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style. Here, use sharp (rounded-sm) buttons.",
+    "NEVER: use AI assistant Emoji characters like robot, brain, lightbulb for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Use sonner for toasts (located in /app/src/components/ui/sonner.js or .jsx)."
+  ]
+}
